@@ -9,6 +9,12 @@ export const WebSocketMessageTypes = {
   ERROR: 'error',
   PING: 'ping',
   PONG: 'pong',
+  CONNECTION_ESTABLISHED: 'connection_established',
+  QUERY_COMPLETED: 'query_completed',
+  WORKFLOW_SELECTED: 'workflow_selected',
+  NOTIFICATION: 'notification',
+  HEARTBEAT: 'heartbeat',
+  LANGGRAPH_STATE: 'langgraph_state',
 };
 
 export const MessageBuilders = {

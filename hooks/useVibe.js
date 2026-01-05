@@ -112,6 +112,10 @@ export const useVibe = () => {
   const currentConversation = safeCurrentConversationId
     ? safeConversations[safeCurrentConversationId]
     : null;
+  
+  // Debug logging disabled for production - uncomment for debugging
+  // console.log('[useVibe] State:', { conversationId: safeCurrentConversationId, messageCount: currentConversation?.messages?.length || 0 });
+  
   const navigating = currentConversation?.navigating || false;
   const conversationState = currentConversation?.["conversation_state"] || null;
   const currentMessages = currentConversation?.messages || [];
@@ -446,7 +450,7 @@ export const useVibe = () => {
   };
 
   return {
-    messages,
+    messages: currentMessages, // Return current conversation's messages
     isStreaming,
     currentProgress,
     error,

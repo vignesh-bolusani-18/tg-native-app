@@ -101,12 +101,13 @@ const analysisSuggestionPrompts = {
 // ... existing imports ...
 
 const ChatPage = () => {
-  console.log("🎯 ChatPage Rendered");
+  // Debug logging disabled for production
+  // console.log(\"ChatPage Rendered\");
 
   const [isNewChatMode, setIsNewChatMode] = useState(false);
   // const [isSidebarVisible, setIsSidebarVisible] = useState(false); // Removed local state
 
-  const { currentCompany } = useAuth();
+  const { currentCompany, userInfo } = useAuth();
   const { experiments_list } = useExperiment();
   
   const {
@@ -192,14 +193,16 @@ const ChatPage = () => {
         setIsNewChatMode(false);
       }
     }
-  }, [currentConversationId, conversations, currentConversation, setHasConversation]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentConversationId, conversations, currentConversation]);
 
   // Stop waiting logic
   useEffect(() => {
     if (isStreaming && isWaitingForAI) {
       setTimeout(() => setIsWaitingForAI(false), 1000);
     }
-  }, [isStreaming, isWaitingForAI, setIsWaitingForAI]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isStreaming, isWaitingForAI]);
 
   useEffect(() => {
     if (isWaitingForAI && currentProgress.length > 0) {
@@ -209,7 +212,8 @@ const ChatPage = () => {
       );
       if (hasAIResponse) setIsWaitingForAI(false);
     }
-  }, [isWaitingForAI, currentProgress, setIsWaitingForAI]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isWaitingForAI, currentProgress]);
 
   // Auto-stop safety timeouts
   useEffect(() => {
@@ -218,7 +222,8 @@ const ChatPage = () => {
       timeoutId = setTimeout(() => setStreamingStatus(false), 30000);
     }
     return () => clearTimeout(timeoutId);
-  }, [isStreaming, setStreamingStatus]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isStreaming]);
 
   useEffect(() => {
     let timeoutId;
@@ -226,9 +231,13 @@ const ChatPage = () => {
       timeoutId = setTimeout(() => setIsWaitingForAI(false), 100000);
     }
     return () => clearTimeout(timeoutId);
-  }, [isWaitingForAI, setIsWaitingForAI]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isWaitingForAI]);
 
   const handleSendMessage = async (message) => {
+    // Debug logging - disabled for production
+    // console.log('Sending message:', message.substring(0, 50));
+    
     let data = Object.fromEntries(
       Object.entries(selectedDatasets).map(([key, value]) => [key, value.path])
     );
@@ -237,7 +246,9 @@ const ChatPage = () => {
       data = { ...data, ...analysisDataPathDict };
     }
 
-    if (isNewChatMode) setIsNewChatMode(false);
+    if (isNewChatMode) {
+      setIsNewChatMode(false);
+    }
 
     await addMessage({
       id: `user-${Date.now()}`,
@@ -249,11 +260,14 @@ const ChatPage = () => {
     });
 
     setIsWaitingForAI(true);
+    
+    const finalQuery = analysisSystemPrompt ? analysisSystemPrompt + "\n\n" + message : message;
 
     sendQuery({
-      query: analysisSystemPrompt ? analysisSystemPrompt + "\n\n" + message : message,
+      query: finalQuery,
       data: data,
     });
+    
     clearAllSelectedDatasets();
   };
 
@@ -305,15 +319,10 @@ const ChatPage = () => {
 
   const processingText = currentConversation?.processingStepText;
 
-  console.log('🎯 ChatPage State:', { 
-    navigating, 
-    hasConversation, 
-    conversationId: currentConversationId,
-    messageCount: currentConversation?.messages?.length 
-  });
+  // Debug logging disabled for production
+  // console.log('ChatPage State:', { navigating, hasConversation, messageCount: currentConversation?.messages?.length });
 
   if (navigating) {
-    console.log('⏳ ChatPage: Showing loading due to navigating=true');
     return <LoadingScreen message="Loading chat..." />;
   }
 

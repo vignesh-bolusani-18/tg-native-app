@@ -19,7 +19,8 @@ export default function VibeIndex() {
   const [checking, setChecking] = React.useState(true);
   const hasRedirected = React.useRef(false);
 
-  console.log('🎯 VibeIndex - State:', { checking, navigating, currentConversationId, hasCompany: !!currentCompany });
+  // Debug logging disabled for production
+  // console.log('VibeIndex - State:', { checking, navigating, currentConversationId, hasCompany: !!currentCompany });
 
   // Check authentication
   useEffect(() => {
@@ -80,10 +81,10 @@ export default function VibeIndex() {
     // Add timeout to prevent infinite loading
     const timeoutId = setTimeout(() => {
       if (checking) {
-        console.error('⏱️ VibeIndex: Auth check timeout - forcing complete');
+        console.log('⏱️ VibeIndex: Auth check timeout - completing anyway');
         setChecking(false);
       }
-    }, 5000);
+    }, 10000); // 10 second timeout to allow backend calls
     
     checkAuth();
     
@@ -99,7 +100,6 @@ export default function VibeIndex() {
   }, [currentConversationId, checking]);
 
   if (checking || navigating) {
-    console.log('⏳ VibeIndex: Showing loading...', { checking, navigating });
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
         <ActivityIndicator size="large" color="#3B82F6" />
@@ -107,8 +107,6 @@ export default function VibeIndex() {
     );
   }
   
-  console.log('✅ VibeIndex: Rendering ChatPage');
-
   // If no active conversation, show default new chat page
   return <ChatPage />;
 }

@@ -19,6 +19,7 @@
     "@react-navigation/native": "^7.1.8",
     "@reduxjs/toolkit": "^2.11.2",
     "amazon-cognito-identity-js": "^6.3.16",
+    "ansi-escapes": "^7.2.0",
     "axios": "^1.13.2",
     "clsx": "^2.1.1",
     "crypto-js": "^4.2.0",
@@ -66,7 +67,6 @@
     "yup": "^1.7.1"
   },
   "devDependencies": {
-    "@expo/metro-config": "^54.0.12",
     "@types/react": "~19.1.0",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",

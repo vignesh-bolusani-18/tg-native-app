@@ -1,6 +1,7 @@
 // D:\TG_REACT_NATIVE_MOBILE_APP\hooks\useWorkflowWebSocket.js
 import axios from "axios";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { AppState } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 
 // Import your configs from utils
@@ -51,22 +52,58 @@ export const useWorkflowWebSocket = (workflowName = "master_workflow") => {
   // Generate JWT token for WebSocket authentication
   const generateAuthToken = useCallback(async () => {
     try {
-      // ⚠️ If no company selected, we still need to authenticate for some basic operations
-      // But conversation operations will fail without company ID
-      if (!userInfo?.userID) {
+      console.log('\n' + '='.repeat(60));
+      console.log('🔐 [WEBSOCKET] GENERATING AUTH TOKEN');
+      console.log('='.repeat(60));
+      
+      // Get userID with fallback chain: userInfo → userData → token payload
+      let userId = userInfo?.userID || userInfo?.userId;
+      
+      if (!userId && userData?.token) {
+        // Extract from token if not in userInfo
+        try {
+          const tokenParts = userData.token.split('.');
+          if (tokenParts.length === 3) {
+            const payload = JSON.parse(atob(tokenParts[1]));
+            userId = payload.userID || payload.sub || payload.user_id;
+          }
+        } catch (e) {
+          console.error('Failed to extract userID from token:', e);
+        }
+      }
+      
+      if (!userId) {
         log("error", "Missing user ID for token generation");
+        console.error('❌ No user ID available');
+        console.error('   userInfo:', userInfo);
+        console.error('   userData:', userData ? 'exists' : 'missing');
         return null;
       }
 
-      // If company is not selected, we can still generate a token but with limitations
-      if (!currentCompany?.companyID) {
+      // Get companyID with fallback
+      const companyId = currentCompany?.companyID || currentCompany?.id;
+      
+      if (!companyId) {
         log("warn", "No company selected - WebSocket operations will be limited");
-        // For now, return null as most operations require a company
-        // In production, you might implement company-less operations
+        console.warn('⚠️ No company selected');
+        console.warn('   currentCompany:', currentCompany);
         return null;
       }
 
+      console.log('👤 User ID:', userId);
+      console.log('🏢 Company ID:', companyId);
+      console.log('🏢 Company Name:', currentCompany.companyName || currentCompany.name);
       log("info", "Generating JWT token for WebSocket authentication");
+      
+      // CRITICAL: Use refresh_token_company for WebSocket auth
+      // This token was retrieved when the user selected a company
+      const { getItem } = await import('../utils/storage');
+      const refreshTokenCompany = await getItem('refresh_token_company');
+      const authHeader = refreshTokenCompany || userData?.token;
+      
+      console.log('🔑 Auth token type:', refreshTokenCompany ? 'refresh_token_company ✅' : 'fallback token ⚠️');
+      console.log('🔑 Auth token:', authHeader ? authHeader.substring(0, 30) + '...' : 'MISSING!');
+      
       const baseUrl = process.env.EXPO_PUBLIC_VIBE_BASE_URL;
       
       // In React Native/Expo, localhost usually refers to the device itself.
@@ -74,19 +111,21 @@ export const useWorkflowWebSocket = (workflowName = "master_workflow") => {
       // Remove /api/v1 from baseUrl if it exists, as generate-token might be at root or specific path
       // But based on user env, it seems everything is under /api/v1
       const url = `https://${baseUrl}/generate-token`;
+      console.log('🔗 Token URL:', url);
+      console.log('📝 Request params:', { user_id: userId, company_id: companyId });
 
       const response = await axios.post(
         url,
         {},
         {
           params: {
-            user_id: userInfo.userID,
-            company_id: currentCompany.companyID,
+            user_id: userId,
+            company_id: companyId,
             expires_hours: 24,
           },
           headers: { 
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${userData?.token}`
+            "Authorization": `Bearer ${authHeader}`
           },
         }
       );
@@ -100,10 +139,16 @@ export const useWorkflowWebSocket = (workflowName = "master_workflow") => {
       const data = response.data;
       const token = data.access_token;
 
+      console.log('✅ JWT token generated successfully!');
+      console.log('   Token:', token ? token.substring(0, 30) + '...' : 'none');
+      console.log('   Expires:', data.expires_at || 'unknown');
+      console.log('='.repeat(60) + '\n');
       log("info", "JWT token generated successfully");
       setAuthToken(token);
       return token;
     } catch (error) {
+      console.error('❌ [WEBSOCKET] Token generation FAILED:', error.message);
+      console.error('='.repeat(60) + '\n');
       log("error", "Failed to generate JWT token:", error);
       dispatch({ type: "vibe/setError", payload: "WebSocket authentication failed" });
       return null;
@@ -141,17 +186,84 @@ export const useWorkflowWebSocket = (workflowName = "master_workflow") => {
 
   // Message handling
   const handleMessage = useCallback((data) => {
+      console.log('\n' + '='.repeat(60));
+      console.log('📨 [WEBSOCKET] MESSAGE RECEIVED');
+      console.log('='.repeat(60));
+      console.log('   Type:', data.message_type);
+      console.log('   Has langgraph_state:', !!data.langgraph_state);
+      console.log('   Data keys:', Object.keys(data).join(', '));
+      console.log('='.repeat(60) + '\n');
+      
       if (data.message_type !== "heartbeat") {
         log("info", "Received message:", data);
+      }
+
+      // IMPORTANT: Check for langgraph_state FIRST before checking message_type
+      // because langgraph_state messages may not have a message_type field
+      if (data.langgraph_state) {
+        log("info", "LangGraph state update received:", data);
+        console.log('📦 LangGraph State Data:', JSON.stringify(data.langgraph_state).substring(0, 500));
+
+        const lgState = data.langgraph_state;
+        const currentNode = Object.keys(lgState)[0];
+        console.log('🔍 Processing langgraph_state, current node:', currentNode);
+        
+        // Check if this is a final response node that needs an AI message
+        const finalResponseNodes = [
+          'conversation_handler',
+          'final_output_node', 
+          'module_decider_final_response',
+          'data_demander',
+          'sample_data_fetcher',
+          'tags_generator_final_response'
+        ];
+        
+        const isFinalResponse = finalResponseNodes.includes(currentNode);
+        console.log('🔍 Is final response node:', isFinalResponse);
+        
+        // Extract AI response for logging
+        let aiResponse = null;
+        if (lgState.conversation_handler?.answer) {
+          aiResponse = lgState.conversation_handler.answer;
+          console.log('✅ Found AI response in conversation_handler.answer:', aiResponse.substring(0, 100));
+        } else if (lgState.final_output_node?.final_output?.explanation) {
+          aiResponse = lgState.final_output_node.final_output.explanation;
+          console.log('✅ Found AI response in final_output_node');
+        } else if (lgState.module_decider_final_response?.response?.module_decider) {
+          aiResponse = lgState.module_decider_final_response.response.module_decider;
+          console.log('✅ Found AI response in module_decider_final_response');
+        }
+
+        if (data.conversation_id && !conversationId) {
+          console.log('📝 Updating conversation ID to:', data.conversation_id);
+          dispatch({
+            type: "vibe/updateConversationId",
+            payload: data.conversation_id,
+          });
+        }
+
+        // Dispatch to Redux - this is where the message gets added
+        console.log('🚀 Dispatching updateLangGraphState to Redux...');
+        dispatch({
+          type: "vibe/updateLangGraphState",
+          payload: {
+            langgraph_state: data.langgraph_state,
+            conversation_id: data.conversation_id,
+          },
+        });
+        console.log('✅ Dispatched updateLangGraphState');
+        return;
       }
       
       if (data.message_type === WebSocketMessageTypes.CONNECTION_ESTABLISHED) {
         log("info", "Connection established message received");
+        console.log('✅ WebSocket connection confirmed by server');
         return;
       }
 
       if (data.message_type === "query_completed") {
         log("info", "Query completed:", data);
+        console.log('✅ Query completed - stopping loading state');
         setIsLoading(false);
         dispatch({ type: "vibe/setStreamingStatus", payload: false });
         dispatch({ type: "vibe/setWaitingForAI", payload: false });
@@ -166,26 +278,7 @@ export const useWorkflowWebSocket = (workflowName = "master_workflow") => {
         return;
       }
 
-      if (data.langgraph_state) {
-        log("info", "LangGraph state update received:", data);
-
-        if (data.conversation_id && !conversationId) {
-          dispatch({
-            type: "vibe/updateConversationId",
-            payload: data.conversation_id,
-          });
-        }
-
-        dispatch({
-          type: "vibe/updateLangGraphState",
-          payload: {
-            langgraph_state: data.langgraph_state,
-            conversation_id: data.conversation_id,
-          },
-        });
-        return;
-      }
-
+      // Fallback for any other message types
       dispatch({
         type: "vibe/updateLastMessage",
         payload: data,
@@ -399,9 +492,23 @@ export const useWorkflowWebSocket = (workflowName = "master_workflow") => {
   }, [dispatch]);
 
   const sendQuery = useCallback(({ query = "", updated_state = null, data = {} }) => {
-      if (!query.trim() && !updated_state) return;
+      console.log('\n' + '='.repeat(60));
+      console.log('🚀 [WEBSOCKET] SENDING QUERY TO AGENT');
+      console.log('='.repeat(60));
+      
+      if (!query.trim() && !updated_state) {
+        console.warn('⚠️ [WEBSOCKET] Empty query, aborting');
+        return;
+      }
+
+      console.log('📝 Query:', query.substring(0, 100) + (query.length > 100 ? '...' : ''));
+      console.log('🏢 Company:', currentCompany?.companyName);
+      console.log('🆔 Company ID:', currentCompany?.companyID);
+      console.log('📬 Conversation ID:', conversationId || 'New conversation');
 
       const conversation_path = `accounts/${currentCompany?.companyName}_${currentCompany?.companyID}/conversations`;
+      console.log('📂 Conversation Path:', conversation_path);
+      
       const messageUpdatedState = {
         query: query,
         updated_state: updated_state || {},
@@ -414,14 +521,18 @@ export const useWorkflowWebSocket = (workflowName = "master_workflow") => {
       if (Object.keys(data).length > 0) {
         message.data = data;
         message.updated_state = null;
+        console.log('📊 Additional data included:', Object.keys(data));
       }
       if (conversationId) {
         message.conversation_id = conversationId;
       }
 
       setIsLoading(true);
-      console.log("sendQuery: message =", message);
+      console.log('📦 Sending message via WebSocket...');
+      console.log('   Message:', JSON.stringify(message, null, 2));
       sendMessage(message);
+      console.log('✅ Message sent! Waiting for response...');
+      console.log('='.repeat(60) + '\n');
     }, [sendMessage, conversationId, currentCompany?.companyName, currentCompany?.companyID]
   );
 
@@ -492,6 +603,55 @@ export const useWorkflowWebSocket = (workflowName = "master_workflow") => {
       await connect();
     }
     log("info", "Conversation reset completed");
+  }, [connect]);
+
+  // Handle app state changes (background/foreground)
+  const appStateRef = useRef(AppState.currentState);
+  
+  useEffect(() => {
+    const handleAppStateChange = async (nextAppState) => {
+      console.log('[WebSocket] App state changed:', appStateRef.current, '->', nextAppState);
+      
+      // App came back to foreground
+      if (appStateRef.current.match(/inactive|background/) && nextAppState === 'active') {
+        console.log('[WebSocket] App returned to foreground - checking connection...');
+        
+        // Check if WebSocket needs reconnection
+        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+          console.log('[WebSocket] Connection lost while in background - reconnecting...');
+          setIsConnected(false);
+          setConnectionStatus("reconnecting");
+          isConnectedRef.current = false;
+          isConnectingRef.current = false;
+          reconnectAttemptsRef.current = 0; // Reset reconnect attempts
+          setAuthToken(null); // Force new token generation
+          
+          // Small delay to ensure app is fully active
+          setTimeout(async () => {
+            await connect();
+          }, 500);
+        } else {
+          console.log('[WebSocket] Connection still active');
+          setIsConnected(true);
+          setConnectionStatus("connected");
+        }
+      }
+      
+      // App going to background - close connection cleanly
+      if (nextAppState.match(/inactive|background/) && appStateRef.current === 'active') {
+        console.log('[WebSocket] App going to background');
+        // Optionally close WebSocket to save battery
+        // disconnect();
+      }
+      
+      appStateRef.current = nextAppState;
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      subscription?.remove();
+    };
   }, [connect]);
 
   useEffect(() => {

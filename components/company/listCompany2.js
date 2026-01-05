@@ -222,11 +222,11 @@ const ListCompany2 = () => {
             >
               <View style={styles.companyIcon}>
                 <Text style={styles.iconText}>
-                  {company.name.substring(0, 2).toUpperCase()}
+                  {(company.name || company.companyName || "UN").substring(0, 2).toUpperCase()}
                 </Text>
               </View>
               <View style={styles.companyInfo}>
-                <Text style={styles.companyName}>{company.name}</Text>
+                <Text style={styles.companyName}>{company.name || company.companyName || "Unnamed Company"}</Text>
                 {company.role && (
                   <Text style={styles.companyRole}>{company.role}</Text>
                 )}

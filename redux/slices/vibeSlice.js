@@ -61,6 +61,8 @@ const initialState = {
   creditScore: 100, // Default to 100 to allow UI interaction before fetch
   conversation_list: [], 
   isSidebarOpen: false,
+  experiments_list: [], // List of experiments for the current company
+  currentCompany: null, // Current selected company
 };
 
 const vibeSlice = createSlice({
@@ -290,47 +292,60 @@ const vibeSlice = createSlice({
     },
     updateLangGraphState: (state, action) => {
       const { langgraph_state, conversation_id } = action.payload;
-      console.log("[updateLangGraphState] langgraph_state:", langgraph_state);
-      console.log("[updateLangGraphState] conversation_id:", conversation_id);
       
-      state.conversations[state.currentConversationId].langgraphState = langgraph_state;
-      const currentNode = Object.keys(langgraph_state)[0];
-
-      // Store conversation_id if provided (from first response)
-      if (conversation_id) {
-        state.currentConversationId = conversation_id;
-
-        // Ensure conversations object exists
-        if (!state.conversations) {
-          state.conversations = {};
-        }
-
-        // Create conversation if it doesn't exist
-        if (!state.conversations[conversation_id]) {
-          const timestamp = new Date().toISOString();
-          state.conversations[conversation_id] = {
-            id: conversation_id,
-            title: `Chat ${conversation_id.slice(-4)}`,
-            workflowName: "default_workflow",
-            status: "active",
-            createdAt: timestamp,
-            updatedAt: timestamp,
-            messageCount: 0,
-            lastMessagePreview: "",
-            messages: [],
-            lastMessage: null,           
-            isStreaming: false,
-            currentProgress: [],
-            error: null,
-            hasConversation: true,
-            langgraphState: null,
-            chatInitialized: false,
-            selectedDatasets: {},
-            userMessage: "",
-          };
-          state.conversations[state.currentConversationId].hasConversation = true;
-        }
+      console.log('\n' + '🔴'.repeat(30));
+      console.log('🔴 [updateLangGraphState] REDUCER CALLED');
+      console.log('🔴'.repeat(30));
+      console.log('🔴 [updateLangGraphState] langgraph_state keys:', Object.keys(langgraph_state || {}));
+      console.log('🔴 [updateLangGraphState] conversation_id from payload:', conversation_id);
+      console.log('🔴 [updateLangGraphState] currentConversationId in state:', state.currentConversationId);
+      console.log('🔴 [updateLangGraphState] Full langgraph_state:', JSON.stringify(langgraph_state, null, 2).substring(0, 1000));
+      
+      // Ensure conversations object exists
+      if (!state.conversations) {
+        state.conversations = {};
+        console.log("[updateLangGraphState] Created conversations object");
       }
+      
+      // Use conversation_id from payload OR current conversation
+      const targetConversationId = conversation_id || state.currentConversationId;
+      
+      // Store conversation_id if provided (from first response)
+      if (conversation_id && conversation_id !== state.currentConversationId) {
+        state.currentConversationId = conversation_id;
+        console.log("[updateLangGraphState] Updated currentConversationId to:", conversation_id);
+      }
+
+      // Create conversation if it doesn't exist
+      if (!state.conversations[targetConversationId]) {
+        const timestamp = new Date().toISOString();
+        state.conversations[targetConversationId] = {
+          id: targetConversationId,
+          title: `Chat ${targetConversationId.slice(-4)}`,
+          workflowName: "default_workflow",
+          status: "active",
+          createdAt: timestamp,
+          updatedAt: timestamp,
+          messageCount: 0,
+          lastMessagePreview: "",
+          messages: [],
+          lastMessage: null,           
+          isStreaming: false,
+          currentProgress: [],
+          error: null,
+          hasConversation: true,
+          langgraphState: null,
+          chatInitialized: false,
+          selectedDatasets: {},
+          userMessage: "",
+        };
+        console.log("[updateLangGraphState] Created conversation:", targetConversationId);
+      }
+      
+      // NOW it's safe to access the conversation
+      state.conversations[targetConversationId].langgraphState = langgraph_state;
+      const currentNode = Object.keys(langgraph_state)[0];
+      console.log("[updateLangGraphState] currentNode:", currentNode);
 
       // Define final response states that should create AI messages
       const finalResponseStates = [
@@ -376,8 +391,13 @@ const vibeSlice = createSlice({
       // Check if this is a final response state
       const isFinalResponse = finalResponseStates.includes(currentNode);
 
+      console.log('🔴 [updateLangGraphState] currentNode:', currentNode);
+      console.log('🔴 [updateLangGraphState] isFinalResponse:', isFinalResponse);
+      console.log('🔴 [updateLangGraphState] finalResponseStates list:', finalResponseStates);
+
       if (isFinalResponse) {
-        console.log("[updateLangGraphState] isFinalResponse:", isFinalResponse);
+        console.log('🔴 [updateLangGraphState] ✅ IS FINAL RESPONSE - Processing...');
+        console.log("🔴 [updateLangGraphState] isFinalResponse:", isFinalResponse);
         // Find the final response state
         let aiResponse = null;
         let responseData = null;
@@ -390,16 +410,20 @@ const vibeSlice = createSlice({
         let responseDataPath = null;
         let hasS3Data = false;
         const finalStateName = currentNode;
-        console.log("[updateLangGraphState] finalStateName:", finalStateName);
+        console.log("🔴 [updateLangGraphState] finalStateName:", finalStateName);
         const finalState = langgraph_state[finalStateName];
-        console.log("[updateLangGraphState] finalState:", finalState);
+        console.log("🔴 [updateLangGraphState] finalState keys:", finalState ? Object.keys(finalState) : 'NULL');
+        console.log("🔴 [updateLangGraphState] finalState.answer:", finalState?.answer);
+        console.log("🔴 [updateLangGraphState] finalState.response:", finalState?.response);
+        console.log("🔴 [updateLangGraphState] Full finalState:", JSON.stringify(finalState, null, 2).substring(0, 500));
+        
         if (finalStateName === "conversation_handler") {
           aiResponse = finalState.answer;
-          console.log("[updateLangGraphState] aiResponse:", aiResponse);
-          state.conversations[state.currentConversationId]["conversation_state"] = {
+          console.log("🔴 [updateLangGraphState] 🎯 CONVERSATION_HANDLER - aiResponse:", aiResponse ? aiResponse.substring(0, 100) : 'NULL/EMPTY');
+          state.conversations[targetConversationId]["conversation_state"] = {
             ...langgraph_state[finalStateName],
             experiment_execution_state:
-              state.conversations[state.currentConversationId]["experiment_execution_state"] || null,
+              state.conversations[targetConversationId]["experiment_execution_state"] || null,
           };
         } else if (finalStateName === "final_output_node") {
           aiResponse = finalState.final_output?.explanation;
@@ -414,7 +438,7 @@ const vibeSlice = createSlice({
           hasS3Data = finalState.code_execution_result?.upload_status?.success;
           console.log("[updateLangGraphState] aiResponse:", aiResponse);
         } else {
-          state.conversations[state.currentConversationId]["experiment_execution_state"] = langgraph_state[finalStateName];
+          state.conversations[targetConversationId]["experiment_execution_state"] = langgraph_state[finalStateName];
           const responseKey = responseKeyMapping[finalStateName];
           console.log("[updateLangGraphState] responseKey:", responseKey);
 
@@ -443,6 +467,10 @@ const vibeSlice = createSlice({
 
         // If we found an AI response, add it as a message
         if (aiResponse && typeof aiResponse === "string") {
+          console.log('🔴 [updateLangGraphState] ✅✅✅ AI RESPONSE FOUND - CREATING MESSAGE');
+          console.log('🔴 [updateLangGraphState] aiResponse type:', typeof aiResponse);
+          console.log('🔴 [updateLangGraphState] aiResponse length:', aiResponse.length);
+          console.log('🔴 [updateLangGraphState] aiResponse preview:', aiResponse.substring(0, 200));
           // Clean up the response
           let cleanResponse = aiResponse;
           if (aiResponse.includes("Error in module decision:")) {
@@ -480,22 +508,34 @@ const vibeSlice = createSlice({
             state.conversations = {};
           }
 
-          // Add message to conversation using new structure
-          if (conversation_id && state.conversations[conversation_id]) {
-            const conversation = state.conversations[conversation_id];
+          // Add message to conversation using targetConversationId
+          console.log("🔴 [updateLangGraphState] Adding AI message to conversation:", targetConversationId);
+          console.log("🔴 [updateLangGraphState] Conversation exists:", !!state.conversations[targetConversationId]);
+          console.log("🔴 [updateLangGraphState] Available conversations:", Object.keys(state.conversations));
+          
+          if (state.conversations[targetConversationId]) {
+            const conversation = state.conversations[targetConversationId];
+            console.log("🔴 [updateLangGraphState] Conversation messages before:", conversation.messages?.length || 0);
+            if (!conversation.messages) {
+              conversation.messages = [];
+              console.log("🔴 [updateLangGraphState] Created messages array");
+            }
             conversation.messages.push({
               ...aiMessage,
               conversationIndex: conversation.messages.length,
             });
+            console.log("🔴 [updateLangGraphState] ✅ MESSAGE PUSHED! Messages after:", conversation.messages.length);
 
             // Update conversation metadata
             conversation.messageCount = conversation.messages.length;
+            console.log("[updateLangGraphState] Updated messageCount:", conversation.messageCount);
             conversation.lastMessagePreview = cleanResponse.substring(0, 100);
             conversation.updatedAt = new Date().toISOString();
 
             // Update lastMessage for backward compatibility
-            state.conversations[state.currentConversationId].lastMessage = aiMessage;
+            state.conversations[targetConversationId].lastMessage = aiMessage;
           } else {
+            console.log("[updateLangGraphState] Conversation not found, creating fallback");
             // Fallback to legacy behavior
             if (!state.currentConversationId || !state.conversations[state.currentConversationId]) {
               const convs = createDefaultConversation();
@@ -516,7 +556,7 @@ const vibeSlice = createSlice({
           }
 
           // Stop streaming and set waiting for AI to false for final responses
-          state.conversations[state.currentConversationId].isStreaming = false;
+          state.conversations[targetConversationId].isStreaming = false;
           if (
             finalStateName === "sample_data_fetcher" ||
             finalStateName === "tags_generator"
@@ -527,9 +567,9 @@ const vibeSlice = createSlice({
             } else if (finalStateName === "tags_generator") {
               processingText = "Generating data tags...";
             }
-            state.conversations[state.currentConversationId].processingStepText = processingText;
+            state.conversations[targetConversationId].processingStepText = processingText;
           } else {
-            state.conversations[state.currentConversationId].isWaitingForAI = false;
+            state.conversations[targetConversationId].isWaitingForAI = false;
           }
         }
       } else {
@@ -555,7 +595,9 @@ const vibeSlice = createSlice({
         } else if (processingStepTextMapping[currentState]) {
           processingText = processingStepTextMapping[currentState];
         }
-        state.conversations[state.currentConversationId].processingStepText = processingText;
+        if (state.conversations[targetConversationId]) {
+          state.conversations[targetConversationId].processingStepText = processingText;
+        }
       }
     },
     clearLangGraphState: (state) => {
@@ -702,8 +744,67 @@ const vibeSlice = createSlice({
       }
     },
     updateConversationId: (state, action) => {
-      console.log("Redux Slice: Updating conversation ID to:", action.payload);
-      state.currentConversationId = action.payload;
+      const newConversationId = action.payload;
+      const oldConversationId = state.currentConversationId;
+      console.log("Redux Slice: Updating conversation ID from:", oldConversationId, "to:", newConversationId);
+      
+      // If we have an old conversation with messages, migrate them to the new conversation
+      if (oldConversationId && newConversationId && oldConversationId !== newConversationId) {
+        const oldConversation = state.conversations?.[oldConversationId];
+        
+        if (oldConversation && oldConversation.messages && oldConversation.messages.length > 0) {
+          console.log("Migrating", oldConversation.messages.length, "messages from old conversation to new");
+          
+          // Ensure the new conversation exists
+          if (!state.conversations[newConversationId]) {
+            const timestamp = new Date().toISOString();
+            state.conversations[newConversationId] = {
+              id: newConversationId,
+              title: oldConversation.title || `Chat ${newConversationId.slice(-4)}`,
+              workflowName: oldConversation.workflowName || "default_workflow",
+              status: "active",
+              createdAt: oldConversation.createdAt || timestamp,
+              updatedAt: timestamp,
+              messageCount: 0,
+              lastMessagePreview: "",
+              messages: [],
+              lastMessage: null,           
+              isStreaming: oldConversation.isStreaming || false,
+              currentProgress: oldConversation.currentProgress || [],
+              error: null,
+              hasConversation: true,
+              langgraphState: null,
+              chatInitialized: oldConversation.chatInitialized || false,
+              selectedDatasets: oldConversation.selectedDatasets || {},
+              userMessage: oldConversation.userMessage || "",
+              isWaitingForAI: oldConversation.isWaitingForAI || false,
+              processingStepText: oldConversation.processingStepText || "Thinking...",
+            };
+          }
+          
+          // Migrate messages
+          const newConversation = state.conversations[newConversationId];
+          oldConversation.messages.forEach((msg, index) => {
+            // Update the message's conversationId
+            const migratedMsg = {
+              ...msg,
+              conversationId: newConversationId,
+              conversationIndex: newConversation.messages.length,
+            };
+            newConversation.messages.push(migratedMsg);
+          });
+          
+          // Update metadata
+          newConversation.messageCount = newConversation.messages.length;
+          console.log("Migration complete. New conversation now has", newConversation.messages.length, "messages");
+          
+          // Clear old conversation messages (optional, or we can delete it)
+          oldConversation.messages = [];
+          oldConversation.messageCount = 0;
+        }
+      }
+      
+      state.currentConversationId = newConversationId;
     },
     setOpenDataTagger: (state, action) => {
       if (state.currentConversationId && state.conversations?.[state.currentConversationId]) {
@@ -937,6 +1038,12 @@ const vibeSlice = createSlice({
         state.conversations[state.currentConversationId].analysisDataPathDict = null;
       }
     },
+    setExperimentsList: (state, action) => {
+      state.experiments_list = action.payload || [];
+    },
+    setCurrentCompany: (state, action) => {
+      state.currentCompany = action.payload;
+    },
     loadConversations: (state, action) => {
       state.conversation_list = action.payload;
     },
@@ -1083,6 +1190,8 @@ export const {
   setAnalysisSystemPrompt,
   setAnalysisDataPathDict,
   clearSelectedAnalysisExperiment,
+  setExperimentsList,
+  setCurrentCompany,
   setIsSidebarOpenReducer,
   updateConversationName,
   removeConversation,

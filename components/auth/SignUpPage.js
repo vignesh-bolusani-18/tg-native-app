@@ -23,9 +23,8 @@ import {
   verifyOtpAndLogin,
 } from "../../redux/actions/authActions";
 
-// 🔧 FIX: Pointing to standard Expo icon. Change this back when you add your real logo!
-// Note: Ensure the folder name matches exactly (usually 'images', not 'Images' on some systems)
-const TGIcon = require("../../assets/images/icon.png");
+// TrueGradient Logo
+const TGIcon = require("../../assets/images/tg_logo6.svg");
 
 const SignUpPage = () => {
   const [otpSent, setOtpSent] = useState(false);
@@ -234,9 +233,13 @@ const SignUpPage = () => {
                       theme={{
                         colors: {
                           primary: '#3B82F6',
-                          background: '#FFFFFF'
+                          background: '#FFFFFF',
+                          text: '#000000',
+                          placeholder: '#9CA3AF',
+                          onSurfaceVariant: '#000000'
                         }
                       }}
+                      textColor="#000000"
                     />
                     {touched.email && errors.email && (
                       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
@@ -280,17 +283,22 @@ const SignUpPage = () => {
                         marginTop: 8,
                         height: 52,
                         elevation: 4,
-                        shadowColor: '#6366F1',
+                        shadowColor: '#2563eb',
                         shadowOffset: { width: 0, height: 4 },
                         shadowOpacity: 0.3,
-                        shadowRadius: 8
+                        shadowRadius: 8,
+                        justifyContent: 'center'
                       }}
-                      buttonColor="#6366F1"
+                      buttonColor="#2563eb"
                       labelStyle={{ 
                         fontSize: 16, 
                         fontWeight: '700',
-                        letterSpacing: 0.5
+                        letterSpacing: 0.5,
+                        color: '#FFFFFF',
+                        lineHeight: 52,
+                        textAlign: 'center'
                       }}
+                      contentStyle={{ height: 52, justifyContent: 'center' }}
                     >
                       {loading ? "Sending..." : "Send OTP"}
                     </Button>
@@ -340,7 +348,7 @@ const SignUpPage = () => {
                     <View style={{ 
                       flexDirection: 'row', 
                       justifyContent: 'center',
-                      gap: 8,
+                      gap: 6,
                       marginBottom: 20,
                       flexWrap: 'nowrap'
                     }}>
@@ -355,11 +363,11 @@ const SignUpPage = () => {
                           keyboardType="number-pad"
                           maxLength={1}
                           style={{ 
-                            width: 48, 
-                            height: 56, 
+                            width: 40, 
+                            height: 48, 
                             backgroundColor: '#FFFFFF',
                             textAlign: 'center',
-                            minWidth: 48
+                            minWidth: 40
                           }}
                           outlineStyle={{ 
                             borderRadius: 8, 
@@ -370,13 +378,16 @@ const SignUpPage = () => {
                             colors: {
                               primary: '#3B82F6',
                               background: '#FFFFFF',
-                              text: '#1F2937'
+                              text: '#000000',
+                              onSurfaceVariant: '#000000'
                             }
                           }}
+                          textColor="#000000"
                           contentStyle={{
-                            fontSize: 20,
+                            fontSize: 18,
                             fontWeight: '700',
-                            textAlign: 'center'
+                            textAlign: 'center',
+                            color: '#000000'
                           }}
                         />
                       ))}
@@ -409,17 +420,22 @@ const SignUpPage = () => {
                         borderRadius: 10,
                         height: 52,
                         elevation: 4,
-                        shadowColor: '#6366F1',
+                        shadowColor: '#2563eb',
                         shadowOffset: { width: 0, height: 4 },
                         shadowOpacity: 0.3,
-                        shadowRadius: 8
+                        shadowRadius: 8,
+                        justifyContent: 'center'
                       }}
-                      buttonColor="#6366F1"
+                      buttonColor="#2563eb"
                       labelStyle={{ 
                         fontSize: 16, 
                         fontWeight: '700',
-                        letterSpacing: 0.5
+                        letterSpacing: 0.5,
+                        color: '#FFFFFF',
+                        lineHeight: 52,
+                        textAlign: 'center'
                       }}
+                      contentStyle={{ height: 52, justifyContent: 'center' }}
                     >
                       {loading ? "Verifying..." : "Verify OTP"}
                     </Button>

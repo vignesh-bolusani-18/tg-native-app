@@ -675,9 +675,17 @@ export const verifyOtpAndLogin = (otp) => async (dispatch) => {
         // Get company-specific refresh token
         const companyId = mostRecentCompany.id || mostRecentCompany.companyID;
         
+        console.log("🚀 About to call getRefreshToken with companyId:", companyId);
+        
         try {
           const refreshTokenData = await getRefreshToken(companyId);
           console.log("✅ Company refresh token retrieved!", refreshTokenData ? 'Success' : 'No data');
+          console.log("   Data:", JSON.stringify(refreshTokenData, null, 2));
+          
+          // Verify it was stored
+          const { getItem } = await import('../../utils/storage');
+          const storedToken = await getItem('refresh_token_company');
+          console.log("🔍 Verification - refresh_token_company in storage:", storedToken ? `${storedToken.substring(0, 30)}...` : 'NULL');
           
           // Set current company in Redux
           dispatch(setCurrentCompany({
@@ -691,7 +699,9 @@ export const verifyOtpAndLogin = (otp) => async (dispatch) => {
           console.log("✅ AUTHENTICATION COMPLETE - READY FOR CHATBOT!");
           console.log("=".repeat(60) + "\n");
         } catch (tokenError) {
-          console.error("❌ Failed to get company refresh token:", tokenError.message);
+          console.error("❌ Failed to get company refresh token:", tokenError);
+          console.error("   Error message:", tokenError.message);
+          console.error("   Error stack:", tokenError.stack);
           // Still set company but without refresh token
           dispatch(setCurrentCompany({
             ...mostRecentCompany,

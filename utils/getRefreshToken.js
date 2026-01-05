@@ -43,7 +43,7 @@ export const getRefreshToken = async (companyID) => {
     console.log("   Using token type:", refreshAuthToken ? "refresh_auth_token" : "refresh_token");
     console.log("   Token:", token.substring(0, 30) + "...");
 
-    const endpoint = `/getRefreshToken?t=${Date.now()}`;
+    const endpoint = `/getAuthToken?t=${Date.now()}`;
     console.log("   Endpoint path:", endpoint);
     console.log("   Request body:", JSON.stringify({ companyID }));
 

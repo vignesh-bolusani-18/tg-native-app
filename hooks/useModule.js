@@ -18,6 +18,11 @@ export default function useModule() {
 
   const [contextBuckets] = useState({});
   const [loadedDatasets] = useState({});
+  const [configState] = useState({
+    moduleStatus: 'idle',
+    currentModule: null,
+    currentStep: null,
+  });
 
   const getContextConfigFieldByPath = useCallback((path) => {
     const keys = path.split('.');
@@ -56,14 +61,30 @@ export default function useModule() {
     return { success: true, experimentId: Date.now().toString() };
   }, []);
 
+  const discardExperiment = useCallback(() => {
+    console.log('[useModule] Discarding experiment');
+    setContextConfig({
+      scenario_plan: {
+        inventory_constraints: {
+          stock_transfer_level: 'None',
+          stock_transfer_facility: 'None',
+          stock_transfer_zone: [],
+          disaggregation_type: 'simple_disaggregation',
+        },
+      },
+    });
+  }, []);
+
   return {
     contextConfig,
     contextBuckets,
     loadedDatasets,
+    configState,
     getContextConfigFieldByPath,
     updateContextConfigFieldByPath,
     confirmContextGroup,
     confirmAddContext,
     createExperiment,
+    discardExperiment,
   };
 }

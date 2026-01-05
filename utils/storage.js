@@ -9,17 +9,30 @@ const isWeb = Platform.OS === 'web';
 
 export const setItem = async (key, value) => {
   try {
+    console.log(`[storage.js] 📝 Setting ${key}:`, typeof value, value ? `${value.substring(0, 30)}...` : value);
     if (isWeb) {
       // Use localStorage for web
       if (typeof window !== 'undefined' && window.localStorage) {
         localStorage.setItem(key, value);
+        console.log(`[storage.js] ✅ Successfully stored ${key} in localStorage`);
+        // Verify it was stored
+        const verification = localStorage.getItem(key);
+        console.log(`[storage.js] 🔍 Verification: ${key} =`, verification ? `${verification.substring(0, 30)}...` : 'NULL');
+      } else {
+        console.error(`[storage.js] ❌ localStorage not available for ${key}`);
       }
     } else {
       // Use SecureStore for native
       await SecureStore.setItemAsync(key, value);
+      console.log(`[storage.js] ✅ Successfully stored ${key} in SecureStore`);
+      // Verify it was stored
+      const verification = await SecureStore.getItemAsync(key);
+      console.log(`[storage.js] 🔍 Verification: ${key} =`, verification ? `${verification.substring(0, 30)}...` : 'NULL');
     }
   } catch (error) {
-    console.error(`Error storing ${key}:`, error);
+    console.error(`[storage.js] ❌ Error storing ${key}:`, error);
+    console.error(`[storage.js]    Error type:`, error.constructor.name);
+    console.error(`[storage.js]    Error message:`, error.message);
     throw error;
   }
 };

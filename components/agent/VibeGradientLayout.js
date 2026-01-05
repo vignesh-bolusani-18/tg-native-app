@@ -1,5 +1,5 @@
 import { Slot } from "expo-router";
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import {
     Dimensions,
     LayoutAnimation,
@@ -16,9 +16,9 @@ import useModule from "../../hooks/useModule";
 import { useVibe } from "../../hooks/useVibe";
 import { oldFlowModules } from "../../utils/oldFlowModules";
 import {
-    no_of_steps,
-    stepNames,
-    stepsInfo,
+    getAllSteps,
+    getStepInfo,
+    getStepNumber,
 } from "../../utils/VibeGradient Utils/stepsInfo";
 
 // Components
@@ -76,30 +76,25 @@ const VibeGradientLayout = ({ children }) => {
         return null;
       }
 
-      // const workflowStatus =
-      //   currentConversation.experiment_execution_state?.workflow_status;
-      let currentNode =
-        currentConversation.experiment_execution_state?.next_module;
+      const experimentState = currentConversation.experiment_execution_state;
+      if (!experimentState) {
+        return null;
+      }
 
-      const currentWorkflowName =
-        currentConversation.experiment_execution_state?.workflow_name;
+      let currentNode = experimentState.next_module;
+      const currentWorkflowName = experimentState.workflow_name;
 
       if (!currentNode || !currentWorkflowName) {
         return null;
       }
 
-      const currentStep = stepsInfo[currentWorkflowName]?.[currentNode];
-      const totalSteps = no_of_steps[currentWorkflowName];
-
-      if (!currentStep || !totalSteps) {
-        return null;
-      }
-
-      const currentStepName =
-        stepNames[currentWorkflowName]?.[currentNode] || currentNode;
-      const determinedModule =
-        currentConversation.experiment_execution_state?.determined_module ||
-        null;
+      // Use the new step info functions
+      const allSteps = getAllSteps();
+      const totalSteps = allSteps.length;
+      const currentStep = getStepNumber(currentNode);
+      const stepInfo = getStepInfo(currentNode);
+      const currentStepName = stepInfo?.title || currentNode;
+      const determinedModule = experimentState.determined_module || null;
 
       return {
         currentStep,
@@ -144,11 +139,17 @@ const VibeGradientLayout = ({ children }) => {
     setIsSidebarOpen,
   ]);
 
+  // Track if we've already attempted to load conversations
+  const hasLoadedConversationsRef = useRef(false);
+
   useEffect(() => {
-    if (conversation_list.length === 0) {
+    // Only load once per session, and only if list is empty
+    if (conversation_list.length === 0 && !hasLoadedConversationsRef.current) {
+      hasLoadedConversationsRef.current = true;
       loadConversationList();
     }
-  }, [conversation_list.length, loadConversationList]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run once on mount only
 
   const handleNewChat = async () => {
     if (conversations[currentConversationId]?.messages?.length === 0) return;

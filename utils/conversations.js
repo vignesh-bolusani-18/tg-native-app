@@ -60,8 +60,8 @@ export const getConversationsByCompany = async ({ token }) => {
     // Added timestamp and sendHash as per working web app
     const url = `${apiConfig.apiBaseURL}/conversationByCompany?t=${Date.now()}&sendHash=true`;
     
-    console.log('🔵 Fetching conversations from:', url);
-    console.log('🔵 Using API Key:', apiConfig.apiKey ? '***' + apiConfig.apiKey.slice(-4) : 'UNDEFINED');
+    // Debug logging disabled for production
+    // console.log('Fetching conversations from:', url);
 
     const response = await fetch(url, {
       method: 'GET',
@@ -76,7 +76,8 @@ export const getConversationsByCompany = async ({ token }) => {
     const data = await response.json();
     return data;
   } catch (error) {
-    console.error('Error getting conversations by company:', error);
+    // Only log warning instead of error to reduce console spam
+    console.warn('getConversationsByCompany:', error.message);
     throw error;
   }
 };

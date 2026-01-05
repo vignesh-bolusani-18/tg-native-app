@@ -69,15 +69,21 @@ const TypingIndicator = ({ isTyping, message }) => {
   });
 
   return (
-    <View className="flex-row w-full py-2 bg-white px-4 items-center gap-3">
-      {/* Spinning Container */}
+    <View style={{ flexDirection: 'row', width: '100%', paddingVertical: 12, backgroundColor: 'transparent', paddingHorizontal: 8, alignItems: 'center', gap: 12 }}>
+      {/* Spinning Container with Gradient Background */}
       <Animated.View
         style={{
-          width: 35,
-          height: 35,
-          borderRadius: 17.5,
+          width: 42,
+          height: 42,
+          borderRadius: 21,
           alignItems: "center",
           justifyContent: "center",
+          backgroundColor: '#3B82F6',
+          shadowColor: '#3B82F6',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.4,
+          shadowRadius: 8,
+          elevation: 4,
           transform: [{ rotate: spin }], // Rotate container clockwise
         }}
       >
@@ -85,8 +91,9 @@ const TypingIndicator = ({ isTyping, message }) => {
         <Animated.Image
           source={TGLogo}
           style={{
-            width: 20,
-            height: 20,
+            width: 24,
+            height: 24,
+            tintColor: '#FFFFFF',
             transform: [{ rotate: counterSpin }], // Rotate image counter-clockwise
           }}
           resizeMode="contain"
@@ -94,13 +101,13 @@ const TypingIndicator = ({ isTyping, message }) => {
       </Animated.View>
 
       {/* Pulsing Text */}
-      <View className="flex-1 justify-center">
+      <View style={{ flex: 1, justifyContent: 'center' }}>
         <Animated.Text
           style={{
             opacity: textOpacity,
-            fontSize: 14,
-            fontWeight: "700", // Bold text
-            color: "#3b82f6", // Blue color (approx match to your gradient start)
+            fontSize: 15,
+            fontWeight: "600", // Semi-bold text
+            color: "#1F2937", // Dark gray color for better readability
           }}
         >
           {message || "Thinking..."}
