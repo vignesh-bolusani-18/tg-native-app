@@ -1,0 +1,417 @@
+// D:\TG_REACT_NATIVE_MOBILE_APP\redux\actions\vibeAction.js
+
+import { getExperimentById } from "../../utils/getExperiments";
+import {
+    addConversation,
+    addMessage,
+    addProgressUpdate,
+    clearError,
+    clearProgress,
+    decrementCreditScore,
+    loadConversations,
+    removeConversation,
+    selectConversation,
+    setConnectionStatus,
+    setCreditScore,
+    setError,
+    setExperimentData,
+    setStreamingStatus,
+    updateConversationName,
+    updateLastMessage,
+} from "../slices/vibeSlice";
+
+import {
+    createConversation,
+    deleteConversation,
+    getConversations,
+    getConversationsByCompany,
+    renameConversation,
+} from "../../utils/conversations";
+import { getCreditScore, updateCredits } from "../../utils/getAndUpdateCredits";
+import { fetchJsonFromS3 } from "../../utils/s3Utils";
+
+/**
+ * Fetch current credit score and store in redux.
+ * Normalizes response (API returns { companyID, credits } per spec).
+ */
+export const fetchCreditScoreAction = () => async (dispatch) => {
+  try {
+    const response = await getCreditScore();
+
+    // API per spec returns { companyID, credits } OR number
+    const normalized =
+      typeof response === "number" ? response : response?.credits ?? null;
+
+    if (normalized !== null) {
+      dispatch(setCreditScore(normalized));
+      return normalized;
+    }
+
+    // If API shape changed, return raw response
+    return response;
+  } catch (err) {
+    console.error("fetchCreditScoreAction error:", err);
+    throw err;
+  }
+};
+
+export const decrementCreditsAction = (value) => async (dispatch) => {
+  try {
+    const resp = await updateCredits("decrease", value);
+    // server per spec may return { companyID, credits } or something similar
+    dispatch(decrementCreditScore(resp.value));
+    return resp;
+  } catch (err) {
+    console.error("decrementCreditsAction error:", err);
+    throw err;
+  }
+};
+
+// Action Creators
+export const sendMessage = (message) => (dispatch) => {
+  const userMessage = {
+    id: Date.now(),
+    type: "user",
+    content: message,
+    timestamp: new Date().toISOString(),
+  };
+
+  dispatch(addMessage(userMessage));
+  dispatch(clearProgress());
+  dispatch(setStreamingStatus(true));
+  dispatch(clearError());
+};
+
+export const receiveMessage =
+  (message, toolCalls = []) =>
+  (dispatch) => {
+    const aiMessage = {
+      id: Date.now(),
+      type: "ai",
+      content: message,
+      timestamp: new Date().toISOString(),
+      toolCalls: toolCalls, // Store minimal tool call info
+    };
+
+    console.log("Redux: Creating AI message and stopping streaming");
+    dispatch(addMessage(aiMessage));
+    dispatch(setStreamingStatus(false));
+  };
+
+export const updateProgress = (progressData) => (dispatch) => {
+  dispatch(addProgressUpdate(progressData));
+};
+
+export const handleConnectionOpen = () => (dispatch) => {
+  console.log("Redux: Setting connection status to true");
+  dispatch(setConnectionStatus(true));
+  dispatch(clearError());
+};
+
+export const handleConnectionClose = () => (dispatch) => {
+  console.log("Redux: Setting connection status to false");
+  dispatch(setConnectionStatus(false));
+  dispatch(setStreamingStatus(false));
+};
+
+export const handleConnectionError = (error) => (dispatch) => {
+  console.log("Redux: Connection error:", error);
+  dispatch(setError(error));
+  dispatch(setConnectionStatus(false));
+  dispatch(setStreamingStatus(false));
+};
+
+// Action to fetch and store experiment data
+export const fetchAndStoreExperimentData =
+  (experimentId, currentCompany, userInfo) => async (dispatch) => {
+    try {
+      console.log("Fetching experiment data for:", experimentId);
+
+      const response = await getExperimentById(
+        { experimentID: experimentId },
+        currentCompany,
+        userInfo.userID
+      );
+
+      const experimentData = await response;
+      console.log("Experiment data fetched:", experimentData);
+
+      dispatch(setExperimentData({ experimentId, experimentData }));
+
+      return experimentData;
+    } catch (error) {
+      console.error("Error fetching experiment data:", error);
+      throw error;
+    }
+  };
+
+// Thunk for WebSocket message handling
+export const handleWebSocketMessage = (messageData) => (dispatch, getState) => {
+  try {
+    const data =
+      typeof messageData === "string" ? JSON.parse(messageData) : messageData;
+
+    // console.log("Processing WebSocket message:", data);
+
+    // Check if we've already processed this exact message recently
+    const currentState = getState();
+    const lastMessage = currentState.vibe?.conversations?.[currentState.vibe.currentConversationId]?.lastMessage;
+
+    if (
+      lastMessage &&
+      lastMessage.message_type === data.message_type &&
+      lastMessage.message === data.message &&
+      Math.abs(lastMessage.timestamp - data.timestamp) < 1000
+    ) {
+      console.log("Skipping duplicate message");
+      return;
+    }
+
+    if (data.error) {
+      dispatch(handleConnectionError(data.error));
+      return;
+    }
+
+    // Update progress for streaming updates - exclude both final_result and final_answer
+    if (
+      data.message_type &&
+      data.message_type !== "final_result" &&
+      data.message_type !== "final_answer"
+    ) {
+      // console.log("Adding progress update:", data.message_type, data);
+      dispatch(updateProgress(data));
+    }
+
+    // Handle final result - check for both final_result and final_answer
+    if (
+      data.message_type === "final_result" ||
+      data.message_type === "final_answer"
+    ) {
+      console.log("Processing final result:", data.message);
+
+      // Get current progress to extract tool calls
+      const currentState = getState();
+      const currentProgress = currentState.vibe.conversations[currentState.vibe.currentConversationId]?.currentProgress || [];
+
+      // Extract minimal tool call info
+      const toolCalls = currentProgress
+        .filter((progress) => progress.message_type === "tool_call")
+        .map((progress) => ({
+          step: progress.step,
+          toolName: progress.details?.tool_name || "Unknown Tool",
+          message: progress.message,
+        }));
+
+      // Create AI message with final answer and tool calls
+      dispatch(receiveMessage(data.message, toolCalls));
+
+      // Clear progress for next question
+      dispatch(clearProgress());
+
+      console.log("Final result processed - progress cleared");
+
+      // Return early to prevent further processing
+      return;
+    }
+
+    // Update last message for real-time updates
+    dispatch(updateLastMessage(data));
+  } catch (error) {
+    console.error("Error parsing WebSocket message:", error);
+    dispatch(handleConnectionError("Failed to parse message"));
+  }
+};
+
+export const loadConversationListAction = (userInfo) => async (dispatch, getState) => {
+  console.log("loadConversationList called");
+
+  try {
+    const token = getState().auth.userData.token;
+    console.log("loadConversationListAction: Token available:", !!token);
+    if (token) console.log("loadConversationListAction: Token start:", token.substring(0, 10) + "...");
+
+    let response;
+    try {
+      console.log("loadConversationListAction: Attempting fetch by Company...");
+      response = await getConversationsByCompany({ token });
+    } catch (companyError) {
+      console.warn("loadConversationListAction: Fetch by Company failed:", companyError.message);
+      
+      // If unauthorized (likely no company ID in token), try fetching by User
+      if (companyError.message.includes("401") || companyError.message.includes("authorized")) {
+        console.log("loadConversationListAction: Fallback to fetch by User...");
+        response = await getConversations({ token });
+      } else {
+        throw companyError; // Re-throw other errors
+      }
+    }
+
+    // The response is now a direct array of conversations (or empty if none)
+    // We no longer need to verify security envelope as per new API spec
+    const conversations = Array.isArray(response) ? response : [];
+
+    // --- HELPER: Safer Date Formatting for React Native ---
+    const formatDate = (date) => {
+      // If it's a timestamp number
+      if (!isNaN(date)) {
+        const dateObj = new Date(Number(date));
+        // Use standard Intl if available, or simple toLocaleString for safety
+        try {
+            return dateObj.toLocaleString("en-US", {
+                year: "numeric", month: "short", day: "numeric",
+                hour: "numeric", minute: "numeric", second: "numeric", hour12: true
+            }).replace(',', ' at');
+        } catch (_e) {
+            return dateObj.toString();
+        }
+      }
+
+      // If it's already a formatted string, return as is or parse
+      return date; 
+    };
+
+    const convertToTimestamp = (dateString) => {
+      if(!dateString) return 0;
+      // Handle "at" replacement for typical formatted strings
+      const cleanDate = dateString.toString().replace(/ at /, " ");
+      const date = new Date(cleanDate);
+      if (isNaN(date.getTime())) return 0;
+      return date.getTime();
+    };
+
+    const updatedConversations = conversations.map((conversation) => ({
+      ...conversation,
+      updatedAt: formatDate(conversation.updatedAt),
+      createdAt: formatDate(conversation.createdAt),
+    }));
+
+    // Function to sort conversations based on updatedAt (most recent first)
+    const sortConversations = (conversations) => {
+      return conversations.sort(
+        (a, b) =>
+          convertToTimestamp(b.updatedAt) - convertToTimestamp(a.updatedAt)
+      );
+    };
+
+    const sortedConversations = sortConversations(updatedConversations);
+
+    const activeConversation = sortedConversations.filter(
+      (conversation) => !conversation.inTrash
+    );
+
+    dispatch(loadConversations(activeConversation));
+  } catch (error) {
+    dispatch(setError(error.message));
+  }
+};
+
+export const addNewConversationAction = (tokenPayload) => async (dispatch, getState) => {
+  try {
+    console.log(
+      "addNewConversationAction: Adding new conversation:",
+      tokenPayload
+    );
+
+    const token = getState().auth.userData.token;
+
+    // Call API to create conversation in backend
+    const response = await createConversation({
+      token,
+      userID: tokenPayload.userID,
+      companyID: tokenPayload.companyID
+    });
+
+    console.log("addNewConversationAction: API response:", response);
+
+    try {
+      const convoEntry = {
+        conversationID: tokenPayload.conversationID,
+        conversation_name: tokenPayload.conversation_name,
+        createdAt: tokenPayload.createdAt,
+        updatedAt: tokenPayload.updatedAt,
+        messageCount: tokenPayload.messageCount,
+      };
+
+      dispatch(addConversation(convoEntry));
+      console.log("addNewConversationAction: Conversation added locally");
+    } catch (err) {
+      console.error("addNewConversationAction: Failed to add locally:", err);
+      dispatch(setError(err.message || String(err)));
+      throw err;
+    }
+
+    return response;
+  } catch (error) {
+    console.error(
+      "addNewConversationAction: Error creating conversation:",
+      error.message
+    );
+    if (error.response) {
+      console.error("Server error data:", error.response.data);
+    }
+    dispatch(setError(error.message));
+    throw error;
+  }
+};
+
+export const addConversationFromSidebarAction =
+  ({ conversationID, conversationPath }) =>
+  async (dispatch) => {
+    console.log("addConversationFromSidebarAction:", conversationID);
+    try {
+      const response = await fetchJsonFromS3(conversationPath);
+
+      console.log("addConversationFromSidebarAction: Fetched data:", response);
+
+      dispatch(selectConversation({ conversationID, response }));
+    } catch (error) {
+      console.error(
+        "addConversationFromSidebarAction: Error:",
+        error?.message || error
+      );
+      dispatch(setError(error?.message || String(error)));
+    }
+  };
+
+export const renameConversationAction =
+  (tokenPayload) => async (dispatch, getState) => {
+    try {
+      console.log("renameConversationAction:", tokenPayload);
+      const token = getState().auth.userData.token;
+      const response = await renameConversation({
+        token,
+        conversationID: tokenPayload.conversationID,
+        title: tokenPayload.newConversationName
+      });
+      console.log("renameConversationAction: API response:", response);
+      dispatch(
+        updateConversationName({
+          conversationID: tokenPayload.conversationID,
+          newConversationName: tokenPayload.newConversationName,
+        })
+      );
+      return response;
+    } catch (error) {
+      console.error("renameConversationAction Error:", error.message);
+      dispatch(setError(error.message));
+      throw error;
+    }
+  };
+
+export const deleteConversationAction = (tokenPayload) => async (dispatch, getState) => {
+  try {
+    console.log("deleteConversationAction:", tokenPayload);
+    const token = getState().auth.userData.token;
+    const response = await deleteConversation({
+      token,
+      conversationID: tokenPayload.conversationID
+    });
+    console.log("deleteConversationAction: API response:", response);
+    dispatch(removeConversation(tokenPayload.conversationID));
+    return response;
+  } catch (error) {
+    console.error("deleteConversationAction Error:", error.message);
+    dispatch(setError(error.message));
+    throw error;
+  }
+};
