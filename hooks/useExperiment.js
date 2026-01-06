@@ -5,12 +5,12 @@
 
 import { useCallback, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { getAllExperiments, getExperimentById } from '../utils/getExperiments';
-import { 
-  setExperimentsList, 
-  setSelectedAnalysisExperiment,
-  clearSelectedAnalysisExperiment 
+import {
+  clearSelectedAnalysisExperiment,
+  setExperimentsList,
+  setSelectedAnalysisExperiment
 } from '../redux/slices/vibeSlice';
+import { getAllExperiments, getExperimentById } from '../utils/getExperiments';
 
 export default function useExperiment() {
   const dispatch = useDispatch();

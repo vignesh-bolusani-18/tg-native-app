@@ -1,24 +1,25 @@
 import { Slot } from "expo-router";
 import React, { useEffect, useRef } from "react";
 import {
-    Dimensions,
-    LayoutAnimation,
-    Platform,
-    TouchableOpacity,
-    UIManager,
-    View,
+  Dimensions,
+  LayoutAnimation,
+  Platform,
+  TouchableOpacity,
+  UIManager,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // Hooks & Logic
+import useAuth from "../../hooks/useAuth";
 import useExperiment from "../../hooks/useExperiment";
 import useModule from "../../hooks/useModule";
 import { useVibe } from "../../hooks/useVibe";
 import { oldFlowModules } from "../../utils/oldFlowModules";
 import {
-    getAllSteps,
-    getStepInfo,
-    getStepNumber,
+  getAllSteps,
+  getStepInfo,
+  getStepNumber,
 } from "../../utils/VibeGradient Utils/stepsInfo";
 
 // Components
@@ -116,19 +117,30 @@ const VibeGradientLayout = ({ children }) => {
 
   const workflowProgress = getWorkflowProgress();
 
-  // Check if conversation has started
+  // Track previous message count to detect new messages
+  const previousMessageCountRef = useRef(0);
+
+  // Check if conversation has started - only close sidebar on FIRST message sent
   useEffect(() => {
+    const messageCount = conversations[currentConversationId]?.messages?.length || 0;
+    const previousCount = previousMessageCountRef.current;
+    
     if (
       currentConversationId &&
-      conversations[currentConversationId]?.messages?.length > 0
+      messageCount > 0
     ) {
       setHasConversation(true);
-      // Auto-close sidebar on mobile when conversation starts
-      if (isMobile && isSidebarOpen) {
+      
+      // ⭐ FIX: Only auto-close sidebar when FIRST message is sent (not on every re-render)
+      // This prevents the sidebar from being unclickable after chatting
+      if (isMobile && previousCount === 0 && messageCount > 0 && isSidebarOpen) {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
         setIsSidebarOpen(false);
       }
     }
+    
+    // Update previous count
+    previousMessageCountRef.current = messageCount;
     
     // Route matching logic (simplified for Expo Router)
     // In Expo Router, the path is managed by the file structure, 
@@ -143,17 +155,29 @@ const VibeGradientLayout = ({ children }) => {
     setIsSidebarOpen,
   ]);
 
+  // Get current company for tracking changes
+  const { currentCompany } = useAuth();
+
   // Track if we've already attempted to load conversations
   const hasLoadedConversationsRef = useRef(false);
+  const previousCompanyIdRef = useRef(currentCompany?.companyID || currentCompany?.id);
 
+  // Load conversations on mount and when company changes
   useEffect(() => {
-    // Only load once per session, and only if list is empty
-    if (conversation_list.length === 0 && !hasLoadedConversationsRef.current) {
+    const currentCompanyId = currentCompany?.companyID || currentCompany?.id;
+    const companyChanged = previousCompanyIdRef.current !== currentCompanyId;
+    
+    // Load conversations if:
+    // 1. First time loading (list is empty and haven't tried yet)
+    // 2. Company has changed
+    if (currentCompanyId && (companyChanged || (conversation_list.length === 0 && !hasLoadedConversationsRef.current))) {
+      console.log('📚 Loading conversation list for company:', currentCompanyId);
       hasLoadedConversationsRef.current = true;
+      previousCompanyIdRef.current = currentCompanyId;
       loadConversationList();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run once on mount only
+  }, [currentCompany?.companyID, currentCompany?.id]); // Reload when company changes
 
   const handleNewChat = async () => {
     if (conversations[currentConversationId]?.messages?.length === 0) return;

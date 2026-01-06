@@ -4,8 +4,8 @@
  */
 
 import axios from 'axios';
-import { getItem } from './storage';
 import { getAccessToken } from './getAccessToken';
+import { getItem } from './storage';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 const API_KEY = process.env.EXPO_PUBLIC_API_KEY;

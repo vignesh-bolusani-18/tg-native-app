@@ -21,6 +21,9 @@ import {
   signOut,
 } from "../slices/authSlice";
 
+// Import vibe slice actions for company switching
+import { clearConversations, loadConversations } from "../slices/vibeSlice";
+
 // Import your utilities
 import { createCompany } from "../../utils/createCompany";
 import { getCompaniesList } from "../../utils/getCompaniesList";
@@ -815,10 +818,24 @@ export const createNewCompany = (userInfo, companyName) => async (dispatch) => {
   }
 };
 
-export const setCurrCompany = (companyDetails) => async (dispatch) => {
+export const setCurrCompany = (companyDetails) => async (dispatch, getState) => {
   try {
     dispatch(setLoading(true));
     console.log("🔵 setCurrCompany:", companyDetails);
+    
+    // Get the current company to check if it's changing
+    const currentState = getState();
+    const previousCompany = currentState.auth?.currentCompany;
+    const newCompanyId = companyDetails?.id || companyDetails?.companyID;
+    const prevCompanyId = previousCompany?.id || previousCompany?.companyID;
+    const isCompanyChanging = previousCompany && prevCompanyId !== newCompanyId;
+    
+    // Clear conversations when switching to a different company
+    if (isCompanyChanging) {
+      console.log('🗑️ Company is changing - clearing conversations from previous company');
+      dispatch(clearConversations());
+      dispatch(loadConversations([])); // Clear conversation list too
+    }
     
     // Get company-specific refresh token
     if (companyDetails?.id || companyDetails?.companyID) {
@@ -996,16 +1013,22 @@ export const logoutUser = () => async (dispatch) => {
     await AsyncStorage.removeItem("otpEmail");
     await AsyncStorage.removeItem("cognitoSession");
     
+    // Clear conversations from Redux
+    dispatch(clearConversations());
+    dispatch(loadConversations([]));
+    
     // Reset Redux state
     dispatch(signOut());
     
-    console.log("✅ Logout complete - all tokens cleared");
+    console.log("✅ Logout complete - all tokens and conversations cleared");
     console.log("=".repeat(60) + "\n");
     
     return { success: true };
   } catch (error) {
     console.error("❌ Logout error:", error);
     // Still reset Redux even if storage clear fails
+    dispatch(clearConversations());
+    dispatch(loadConversations([]));
     dispatch(signOut());
     return { success: false, error: error.message };
   }

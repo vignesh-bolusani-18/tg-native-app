@@ -12,14 +12,17 @@ import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useVibe } from '../../../hooks/useVibe';
 
 // Action Sections
-import ApprovalSection from '../actions/ApprovalSection';
 import AdvancedQuestionsSection from '../actions/AdvancedQuestionsSection';
+import ApprovalSection from '../actions/ApprovalSection';
 import ContextQuestionsSection from '../actions/ContextQuestionsSection';
 import DataUploadSection from '../actions/DataUploadSection';
 import ExperimentExecutorSection from '../actions/ExperimentExecutorSection';
 import ExperimentProgressTracker from '../actions/ExperimentProgressTracker';
 import SampleDataSection from '../actions/SampleDataSection';
 import TagsSection from '../actions/TagsSection';
+
+// ⭐ Import enhanced data table component (includes code modal inside)
+import AIMessageDataTable from './AIMessageDataTable';
 
 // Assets
 const TGLogo = require('../../../assets/images/icon.png');
@@ -251,6 +254,14 @@ export default function AIMessage({ message, toolsUsed = [], isStreaming = false
   // Extract langgraph state for workflow actions
   const langState = message?.langgraphState;
 
+  // ⭐ ENHANCED: Extract data and other properties from message
+  // These come from final_output_node responses in vibeSlice
+  const messageData = message?.data;
+  const messageDataTitle = message?.dataTitle;
+  const messageDataPath = message?.dataPath;
+  const hasS3Data = message?.hasS3Data;
+  const messageDataTotalRows = message?.dataTotalRows;
+
   // Determine which workflow action sections to show
   const needsApproval = langState?.next_step?.user === 'approve_module' || langState?.next_step?.user === 'approved';
   const needsUploadData = langState?.next_step?.user === 'upload_data' || langState?.next_step?.user === 'uploaded_data';
@@ -277,6 +288,9 @@ export default function AIMessage({ message, toolsUsed = [], isStreaming = false
   const hasWorkflowActions = needsApproval || needsUploadData || hasSampleData || 
     hasTagsData || showContextQuestions || showAdvancedQuestions || 
     showExperimentValidator || showExperimentProgressTracker;
+
+  // Check if we have data to display (code is accessed through data table modal)
+  const hasDataOutput = messageData && (Array.isArray(messageData) ? messageData.length > 0 : Object.keys(messageData).length > 0);
 
   return (
     <View style={styles.container}>
@@ -328,6 +342,18 @@ export default function AIMessage({ message, toolsUsed = [], isStreaming = false
             <View style={styles.answerContainer}>
               {formatAIResponse(finalAnswer)}
             </View>
+          )}
+
+          {/* ⭐ Data Table Component with code modal inside - code only shows when user clicks "Code" button */}
+          {hasDataOutput && (
+            <AIMessageDataTable 
+              data={messageData}
+              title={messageDataTitle}
+              message={message}
+              hasS3Data={hasS3Data}
+              dataPath={messageDataPath}
+              dataTotalRows={messageDataTotalRows}
+            />
           )}
         </View>
 
@@ -523,6 +549,70 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
     fontStyle: 'italic',
     fontSize: 12,
+  },
+  // ⭐ ENHANCED: Code section styles
+  codeSection: {
+    marginTop: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+  },
+  codeTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  codeTitleText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#6366f1',
+  },
+  // ⭐ ENHANCED: Data section styles
+  dataSection: {
+    marginTop: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+  },
+  dataTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  dataTitleText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#0891b2',
+  },
+  dataRowCount: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginLeft: 4,
+  },
+  moreDataIndicator: {
+    padding: 10,
+    alignItems: 'center',
+    backgroundColor: '#f3f4f6',
+  },
+  moreDataText: {
+    fontSize: 12,
+    color: '#6b7280',
+    fontStyle: 'italic',
+  },
+  s3LinkContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+  },
+  s3LinkText: {
+    fontSize: 12,
+    color: '#6b7280',
   },
 });
 

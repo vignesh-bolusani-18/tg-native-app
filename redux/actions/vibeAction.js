@@ -25,7 +25,6 @@ import {
     deleteConversation,
     getConversations,
     getConversationsByCompany,
-    renameConversation,
 } from "../../utils/conversations";
 import { getCreditScore, updateCredits } from "../../utils/getAndUpdateCredits";
 import { fetchJsonFromS3 } from "../../utils/s3Utils";
@@ -223,8 +222,20 @@ export const handleWebSocketMessage = (messageData) => (dispatch, getState) => {
 
 // Track if a load is already in progress to prevent duplicate calls
 let isLoadingConversations = false;
+let lastLoadedCompanyId = null;
 
 export const loadConversationListAction = (userInfo) => async (dispatch, getState) => {
+  // Get current company to check if it changed
+  const currentState = getState();
+  const currentCompanyId = currentState.auth?.currentCompany?.companyID || 
+                           currentState.auth?.currentCompany?.id;
+  
+  // Reset loading flag if company changed
+  if (lastLoadedCompanyId !== currentCompanyId) {
+    isLoadingConversations = false;
+    lastLoadedCompanyId = currentCompanyId;
+  }
+  
   // Prevent duplicate concurrent calls
   if (isLoadingConversations) {
     console.log("loadConversationList: Already loading, skipping duplicate call");
@@ -232,7 +243,7 @@ export const loadConversationListAction = (userInfo) => async (dispatch, getStat
   }
   
   isLoadingConversations = true;
-  console.log("loadConversationList: Starting...");
+  console.log("loadConversationList: Starting for company:", currentCompanyId);
 
   try {
     // CRITICAL: Use refresh_token_company for company-specific API calls

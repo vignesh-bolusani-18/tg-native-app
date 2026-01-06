@@ -404,22 +404,61 @@ const ChatPage = () => {
       
       {/* Chat Header */}
       <View 
-        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', backgroundColor: '#ffffff', zIndex: 10 }}
+        style={{ 
+          flexDirection: 'row', 
+          alignItems: 'center', 
+          justifyContent: 'space-between', 
+          paddingHorizontal: 12, 
+          paddingVertical: 10, 
+          borderBottomWidth: 1, 
+          borderBottomColor: '#f3f4f6', 
+          backgroundColor: '#ffffff', 
+          zIndex: 10 
+        }}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        {/* Left section: Menu + Title (flex: 1 with overflow hidden) */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 }}>
           <TouchableOpacity 
-            onPress={() => setIsSidebarOpen(!isSidebarOpen)}
-            style={{ padding: 8, marginRight: 8, borderRadius: 9999, backgroundColor: '#f9fafb' }}
+            onPress={() => {
+              console.log('🔵 Menu pressed, current isSidebarOpen:', isSidebarOpen);
+              setIsSidebarOpen(!isSidebarOpen);
+            }}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={{ 
+              padding: 10, 
+              marginRight: 8, 
+              borderRadius: 9999, 
+              backgroundColor: '#f9fafb',
+              zIndex: 100
+            }}
+            activeOpacity={0.7}
           >
             <MaterialIcons name="menu" size={24} color="#374151" />
           </TouchableOpacity>
-          <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1f2937' }}>
+          <Text 
+            style={{ fontSize: 16, fontWeight: '600', color: '#1f2937', flex: 1 }}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
             {currentConversation?.title || "New Chat"}
           </Text>
         </View>
+        
+        {/* Right section: New Chat button (fixed width, always visible) */}
         <TouchableOpacity 
-          onPress={() => createNewChat("supply_chain_manager_workflow", "New Chat")}
-          style={{ padding: 8, borderRadius: 9999, backgroundColor: '#eff6ff' }}
+          onPress={() => {
+            console.log('🆕 Creating new chat...');
+            createNewChat("supply_chain_manager_workflow", "New Chat");
+          }}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={{ 
+            padding: 10, 
+            borderRadius: 9999, 
+            backgroundColor: '#eff6ff',
+            flexShrink: 0,
+            zIndex: 100
+          }}
+          activeOpacity={0.7}
         >
           <MaterialIcons name="add" size={24} color="#2563eb" />
         </TouchableOpacity>
