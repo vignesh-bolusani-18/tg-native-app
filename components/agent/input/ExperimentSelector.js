@@ -14,19 +14,100 @@ import {
   View,
 } from "react-native";
 
+import useAuth from "../../../hooks/useAuth";
 import useExperiment from "../../../hooks/useExperiment";
 import { useVibe } from "../../../hooks/useVibe";
+import { generateSystemPrompt } from "../../../utils/Agent Utils/generateSystemPrompt";
+
+/**
+ * ⭐ MATCHES tg-application: Parse experimentStatus helper
+ * experimentStatus can be a JSON string like {"status": "Completed"} or plain "Completed"
+ */
+const parseExperimentStatus = (input) => {
+  if (!input) return null;
+  try {
+    const json = JSON.parse(input);
+    if (typeof json === "object" && json !== null) {
+      return json.status;
+    }
+  } catch (_e) {
+    // Not a JSON string, return as-is
+    return input;
+  }
+  return input;
+};
+
+/**
+ * ⭐ MATCHES tg-application: Format date to YYYYMM format
+ */
+const formatYearMonth = (dateString) => {
+  if (!dateString) return '';
+  
+  if (typeof dateString === 'number') {
+    const date = new Date(dateString);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    return `${year}${month}`;
+  }
+  
+  const datePart = String(dateString).split(' at ')[0];
+  const date = new Date(datePart);
+  
+  if (isNaN(date.getTime())) {
+    const directDate = new Date(dateString);
+    if (!isNaN(directDate.getTime())) {
+      const year = directDate.getFullYear();
+      const month = String(directDate.getMonth() + 1).padStart(2, '0');
+      return `${year}${month}`;
+    }
+    return '';
+  }
+  
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  return `${year}${month}`;
+};
 
 const ExperimentSelector = ({ visible, onClose, onSelectExperiment }) => {
-  const { experiments_list, loading, fetchExperiments } = useExperiment();
-  const { selectedAnalysisExperiment, setSelectedAnalysisExperiment, clearSelectedAnalysisExperiment } = useVibe();
+  const { experiments_list, loading, error, fetchExperiments } = useExperiment();
+  const { currentCompany } = useAuth();
+  const { 
+    selectedAnalysisExperiment, 
+    setSelectedAnalysisExperiment, 
+    clearSelectedAnalysisExperiment,
+    setAnalysisSystemPrompt,
+    setAnalysisDataPathDict,
+  } = useVibe();
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredExperiments, setFilteredExperiments] = useState([]);
+  const [hasError, setHasError] = useState(false);
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
 
   // Fetch experiments on mount
   useEffect(() => {
     if (visible && (!experiments_list || experiments_list.length === 0)) {
-      fetchExperiments();
+      setHasError(false);
+      setLoadingTimeout(false);
+      
+      // Set timeout after 10 seconds of loading
+      const timeoutId = setTimeout(() => {
+        if (loading) {
+          console.warn('⚠️ [ExperimentSelector] Loading timeout - backend may be unavailable');
+          setLoadingTimeout(true);
+        }
+      }, 10000);
+      
+      fetchExperiments().then(() => {
+        clearTimeout(timeoutId);
+        setLoadingTimeout(false);
+      }).catch((err) => {
+        console.error('❌ [ExperimentSelector] Error fetching:', err);
+        clearTimeout(timeoutId);
+        setHasError(true);
+        setLoadingTimeout(false);
+      });
+      
+      return () => clearTimeout(timeoutId);
     }
   }, [visible, experiments_list, fetchExperiments]);
 
@@ -37,11 +118,11 @@ const ExperimentSelector = ({ visible, onClose, onSelectExperiment }) => {
       return;
     }
     
-    // Filter only completed experiments that are not in trash
+    // ⭐ MATCHES tg-application: Filter completed experiments using parseExperimentStatus
     const completedExperiments = experiments_list.filter(
       (exp) =>
         !exp.inTrash &&
-        exp.experimentStatus === "Completed" &&
+        parseExperimentStatus(exp.experimentStatus) === "Completed" &&
         !exp.isArchive &&
         ["demand-planning", "inventory-optimization", "price-promotion-optimization"].includes(
           exp.experimentModuleName
@@ -62,8 +143,42 @@ const ExperimentSelector = ({ visible, onClose, onSelectExperiment }) => {
     setFilteredExperiments(filtered);
   }, [searchQuery, experiments_list]);
 
+  /**
+   * ⭐ MATCHES tg-application: Handle experiment selection
+   * Generates systemPrompt and dataPathDict when experiment is selected
+   */
   const handleSelectExperiment = (experiment) => {
+    console.log('🔍 [ExperimentSelector] handleSelectExperiment:', experiment?.experimentName);
+    
+    if (!experiment) {
+      setSelectedAnalysisExperiment(null);
+      setAnalysisSystemPrompt(null);
+      setAnalysisDataPathDict(null);
+      onClose();
+      return;
+    }
+
+    // Build experiment base path - MATCHES tg-application exactly
+    const moduleName = experiment.experimentModuleName;
+    const run_date = formatYearMonth(experiment.createdAt);
+    const experimentBasePath = `accounts/${currentCompany?.companyName}_${currentCompany?.companyID}/data_bucket/${moduleName}/${run_date}/${experiment.experimentID}`;
+    
+    console.log('🔍 [ExperimentSelector] experimentBasePath:', experimentBasePath);
+
+    // Generate systemPrompt and dataPathDict - MATCHES tg-application exactly
+    const { systemPrompt, dataPathDict } = generateSystemPrompt(
+      experimentBasePath,
+      moduleName,
+      experiment.experimentName
+    );
+
+    console.log('🔍 [ExperimentSelector] Generated systemPrompt:', systemPrompt?.substring(0, 100));
+
+    // Update Redux state
     setSelectedAnalysisExperiment(experiment);
+    setAnalysisSystemPrompt(systemPrompt);
+    setAnalysisDataPathDict(dataPathDict);
+    
     if (onSelectExperiment) {
       onSelectExperiment(experiment);
     }
@@ -71,7 +186,10 @@ const ExperimentSelector = ({ visible, onClose, onSelectExperiment }) => {
   };
 
   const handleClearSelection = () => {
+    // ⭐ MATCHES tg-application: Clear all analysis state
     clearSelectedAnalysisExperiment();
+    setAnalysisSystemPrompt(null);
+    setAnalysisDataPathDict(null);
     onClose();
   };
 
@@ -292,9 +410,38 @@ const ExperimentSelector = ({ visible, onClose, onSelectExperiment }) => {
           )}
 
           {/* Experiments List */}
-          {loading ? (
+          {loading && !loadingTimeout ? (
             <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 40 }}>
               <Text style={{ fontSize: 14, color: "#6B7280" }}>Loading experiments...</Text>
+            </View>
+          ) : loadingTimeout || hasError ? (
+            <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 40 }}>
+              <MaterialCommunityIcons name="alert-circle-outline" size={48} color="#EF4444" />
+              <Text style={{ fontSize: 15, color: "#1F2937", marginTop: 12, textAlign: "center", fontWeight: "600" }}>
+                {loadingTimeout ? "Service Unavailable" : "Unable to Load Experiments"}
+              </Text>
+              <Text style={{ fontSize: 13, color: "#6B7280", marginTop: 8, textAlign: "center" }}>
+                {loadingTimeout 
+                  ? "The backend service is temporarily unavailable. Please try again later."
+                  : "Failed to fetch experiments. Please check your connection and try again."
+                }
+              </Text>
+              <TouchableOpacity 
+                onPress={() => {
+                  setHasError(false);
+                  setLoadingTimeout(false);
+                  fetchExperiments();
+                }}
+                style={{ 
+                  marginTop: 16,
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
+                  backgroundColor: "#3B82F6",
+                  borderRadius: 8,
+                }}
+              >
+                <Text style={{ color: "#FFFFFF", fontWeight: "600" }}>Retry</Text>
+              </TouchableOpacity>
             </View>
           ) : filteredExperiments.length === 0 ? (
             <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 40 }}>

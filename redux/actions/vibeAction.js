@@ -129,8 +129,7 @@ export const fetchAndStoreExperimentData =
 
       const response = await getExperimentById(
         { experimentID: experimentId },
-        currentCompany,
-        userInfo.userID
+        currentCompany
       );
 
       const experimentData = await response;

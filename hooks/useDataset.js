@@ -1,11 +1,12 @@
 /**
  * useDataset Hook - Dataset Management
- * Fetches and manages available datasets for the current company
- * Datasets are retrieved from experiments' metadata paths
+ * ⭐ MATCHES tg-application: Fetches datasets from /datasetByCompany API
+ * NOT extracted from experiments - uses dedicated endpoint
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
+import { getDatasets } from '../utils/getDatasets';
 
 export default function useDataset() {
   const [loading, setLoading] = useState(false);
@@ -16,59 +17,23 @@ export default function useDataset() {
 
   // Get company from auth slice
   const company = useSelector((state) => state.auth?.currentCompany || null);
-  const experiments_list = useSelector((state) => state.vibe?.experiments_list || []);
+  const userInfo = useSelector((state) => state.auth?.user || null);
 
-  // Extract datasets from experiments metadata
-  const extractDatasetsFromExperiments = useCallback((experimentsList) => {
-    if (!Array.isArray(experimentsList) || experimentsList.length === 0) {
-      return [];
-    }
-
-    const datasetsMap = new Map();
-    
-    experimentsList.forEach((experiment) => {
-      // Check for datasets in experiment data
-      if (experiment.data) {
-        Object.keys(experiment.data).forEach((dataKey) => {
-          const dataEntry = experiment.data[dataKey];
-          if (dataEntry && dataEntry.dataset_info) {
-            const { datasetName, datasetTag, sourceName, metaDataPath } = dataEntry.dataset_info;
-            if (datasetName && !datasetsMap.has(datasetName)) {
-              datasetsMap.set(datasetName, {
-                name: datasetName,
-                datasetName,
-                tag: datasetTag || 'base',
-                source: sourceName || 'Unknown',
-                metadataPath: metaDataPath,
-                experimentId: experiment.experimentID || experiment.id,
-                sampleDataPath: dataEntry.sample_data_path,
-              });
-            }
-          }
-        });
-      }
-    });
-
-    return Array.from(datasetsMap.values());
-  }, []);
-
-  // Fetch all datasets for current company
-  // ⭐ FIX: Datasets are ONLY extracted from experiments, no separate API call
+  // ⭐ MATCHES tg-application: Fetch datasets from dedicated API endpoint
   const fetchDatasets = useCallback(async (force = false) => {
     console.log('🔍 [useDataset] fetchDatasets called, force:', force);
     console.log('   Company:', company?.companyID);
-    console.log('   Experiments:', experiments_list?.length || 0);
     console.log('   Current datasets:', datasets.length);
     
     // Already fetched and not forcing - return early
     if (!force && hasFetchedRef.current && datasets.length > 0) {
       console.log('✅ [useDataset] Using cached datasets:', datasets.length);
-      return;
+      return datasets;
     }
 
     if (!company?.companyID) {
       console.log('⚠️ [useDataset] No company ID available');
-      return;
+      return [];
     }
 
     // Mark as fetched immediately to prevent duplicate calls
@@ -77,48 +42,48 @@ export default function useDataset() {
     setError(null);
     
     try {
-      // ⭐ CRITICAL: Extract datasets from experiments that have been loaded
-      // This matches tg-application - datasets come FROM experiments, not separate API
-      const extractedDatasets = extractDatasetsFromExperiments(experiments_list);
+      // ⭐ CRITICAL: Call /datasetByCompany API like tg-application
+      // This is NOT extracted from experiments - it's a separate endpoint!
+      console.log('🚀 [useDataset] Fetching datasets from API...');
+      const response = await getDatasets(userInfo?.userID);
       
-      console.log('📊 [useDataset] Datasets extracted from experiments:', extractedDatasets.length);
-      console.log('   Dataset names:', extractedDatasets.map(d => d.datasetName).join(', '));
+      let datasetsList = [];
       
-      setDatasets(extractedDatasets);
-      setDatasetsNameList(extractedDatasets.map(d => d.datasetName));
+      if (response && response.datasets && Array.isArray(response.datasets)) {
+        datasetsList = response.datasets;
+        console.log('✅ [useDataset] Found datasets:', datasetsList.length);
+      } else if (Array.isArray(response)) {
+        datasetsList = response;
+        console.log('✅ [useDataset] Direct array response:', datasetsList.length);
+      }
+      
+      if (datasetsList.length > 0) {
+        console.log('   First dataset keys:', Object.keys(datasetsList[0]).join(', '));
+        console.log('   Dataset names:', datasetsList.slice(0, 3).map(d => d.datasetName).join(', '));
+      }
+      
+      setDatasets(datasetsList);
+      setDatasetsNameList(datasetsList.map(d => d.datasetName));
       setLoading(false);
-      console.log('✅ [useDataset] Datasets set successfully');
+      console.log('✅ [useDataset] Datasets set successfully:', datasetsList.length);
+      return datasetsList;
     } catch (err) {
-      console.error('❌ [useDataset] Error:', err);
+      console.error('❌ [useDataset] Error fetching datasets:', err.message);
       setError(err.message);
       setDatasets([]);
       setDatasetsNameList([]);
       setLoading(false);
+      return [];
     }
-  }, [company?.companyID, experiments_list, extractDatasetsFromExperiments, datasets.length]);
+  }, [company?.companyID, userInfo?.userID, datasets.length]);
 
-  // ⭐ FIX: Auto-extract datasets when experiments list changes
-  // Only update if experiments_list changes, not on every render
+  // ⭐ Auto-fetch datasets when company changes
   useEffect(() => {
-    console.log('🔄 [useDataset] Experiments changed, count:', experiments_list?.length || 0);
-    console.log('   Company:', company?.companyID);
-    
-    if (experiments_list && experiments_list.length > 0 && company?.companyID) {
-      const extractedDatasets = extractDatasetsFromExperiments(experiments_list);
-      console.log('📊 [useDataset] Extracted datasets:', extractedDatasets.length);
-      
-      if (extractedDatasets.length > 0) {
-        setDatasets(extractedDatasets);
-        setDatasetsNameList(extractedDatasets.map(d => d.datasetName));
-        hasFetchedRef.current = true; // Mark as fetched
-        console.log('✅ [useDataset] Datasets auto-extracted:', extractedDatasets.map(d => d.datasetName).join(', '));
-      } else {
-        console.warn('⚠️ [useDataset] No datasets found in experiments');
-      }
-    } else if (experiments_list?.length === 0) {
-      console.warn('⚠️ [useDataset] Experiments list is empty');
+    if (company?.companyID && !hasFetchedRef.current) {
+      console.log('🔄 [useDataset] Company available, fetching datasets...');
+      fetchDatasets();
     }
-  }, [experiments_list, company?.companyID, extractDatasetsFromExperiments]);
+  }, [company?.companyID, fetchDatasets]);
 
   // Get dataset by name
   const getDatasetByName = useCallback((name) => {

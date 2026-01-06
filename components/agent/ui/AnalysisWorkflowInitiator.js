@@ -6,31 +6,148 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useEffect, useState } from 'react';
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
+import useAuth from '../../../hooks/useAuth';
 import useExperiment from '../../../hooks/useExperiment';
 import { useVibe } from '../../../hooks/useVibe';
+import { generateSystemPrompt } from '../../../utils/Agent Utils/generateSystemPrompt';
+
+/**
+ * ⭐ MATCHES tg-application: Parse experimentStatus helper
+ * experimentStatus can be a JSON string like {"status": "Completed"} or plain "Completed"
+ */
+const parseExperimentStatus = (input) => {
+  if (!input) return null;
+  try {
+    const json = JSON.parse(input);
+    if (typeof json === "object" && json !== null) {
+      return json.status;
+    }
+  } catch (_e) {
+    // Not a JSON string, return as-is
+    return input;
+  }
+  return input;
+};
+
+/**
+ * ⭐ MATCHES tg-application: Format date to YYYYMM format
+ * Source: ExpTable.js
+ */
+const formatYearMonth = (dateString) => {
+  if (!dateString) return '';
+  
+  // Handle timestamp number
+  if (typeof dateString === 'number') {
+    const date = new Date(dateString);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    return `${year}${month}`;
+  }
+  
+  // Split the string to extract date part (handles "Jan 1, 2024 at 12:00:00 PM" format)
+  const datePart = String(dateString).split(' at ')[0];
+  const date = new Date(datePart);
+  
+  if (isNaN(date.getTime())) {
+    // Try parsing as-is if split didn't work
+    const directDate = new Date(dateString);
+    if (!isNaN(directDate.getTime())) {
+      const year = directDate.getFullYear();
+      const month = String(directDate.getMonth() + 1).padStart(2, '0');
+      return `${year}${month}`;
+    }
+    return '';
+  }
+  
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  return `${year}${month}`;
+};
 
 export default function AnalysisWorkflowInitiator({ onStart, onExperimentSelect }) {
-  const { experiments_list, fetchExperiments, loading: experimentsLoading } = useExperiment();
-  const { selectedAnalysisExperiment, setSelectedAnalysisExperiment, clearSelectedAnalysisExperiment } = useVibe();
+  const { experiments_list, fetchExperiments, loading: experimentsLoading, error: experimentsError } = useExperiment();
+  const { currentCompany } = useAuth();
+  const { 
+    selectedAnalysisExperiment, 
+    setSelectedAnalysisExperiment, 
+    clearSelectedAnalysisExperiment,
+    setAnalysisSystemPrompt,
+    setAnalysisDataPathDict,
+  } = useVibe();
   const [showExperimentList, setShowExperimentList] = useState(false);
+  const [hasError, setHasError] = useState(false);
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
 
   useEffect(() => {
-    fetchExperiments();
+    // Set timeout after 10 seconds of loading
+    const timeoutId = setTimeout(() => {
+      if (experimentsLoading) {
+        console.warn('⚠️ [AnalysisWorkflowInitiator] Loading timeout - backend may be unavailable');
+        setLoadingTimeout(true);
+      }
+    }, 10000);
+    
+    fetchExperiments().then(() => {
+      clearTimeout(timeoutId);
+      setLoadingTimeout(false);
+    }).catch((err) => {
+      console.error('❌ [AnalysisWorkflowInitiator] Error fetching:', err);
+      clearTimeout(timeoutId);
+      setHasError(true);
+      setLoadingTimeout(false);
+    });
+    
+    return () => clearTimeout(timeoutId);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Filter only completed experiments
+  // ⭐ MATCHES tg-application: Filter completed experiments using parseExperimentStatus
   const completedExperiments = (experiments_list || []).filter(
     (exp) =>
       !exp.inTrash &&
-      exp.experimentStatus === "Completed" &&
+      parseExperimentStatus(exp.experimentStatus) === "Completed" &&
       !exp.isArchive &&
       ["demand-planning", "inventory-optimization", "price-promotion-optimization"].includes(
         exp.experimentModuleName
       )
   );
 
+  /**
+   * ⭐ MATCHES tg-application: Handle experiment selection
+   * Generates systemPrompt and dataPathDict when experiment is selected
+   */
   const handleSelectExperiment = (experiment) => {
+    console.log('🔍 [AnalysisWorkflowInitiator] handleSelectExperiment:', experiment?.experimentName);
+    
+    if (!experiment) {
+      console.log('🔍 [AnalysisWorkflowInitiator] No experiment, clearing state');
+      setSelectedAnalysisExperiment(null);
+      setAnalysisSystemPrompt(null);
+      setAnalysisDataPathDict(null);
+      return;
+    }
+
+    // Build experiment base path - MATCHES tg-application exactly
+    const moduleName = experiment.experimentModuleName;
+    const run_date = formatYearMonth(experiment.createdAt);
+    const experimentBasePath = `accounts/${currentCompany?.companyName}_${currentCompany?.companyID}/data_bucket/${moduleName}/${run_date}/${experiment.experimentID}`;
+    
+    console.log('🔍 [AnalysisWorkflowInitiator] experimentBasePath:', experimentBasePath);
+
+    // Generate systemPrompt and dataPathDict - MATCHES tg-application exactly
+    const { systemPrompt, dataPathDict } = generateSystemPrompt(
+      experimentBasePath,
+      moduleName,
+      experiment.experimentName
+    );
+
+    console.log('🔍 [AnalysisWorkflowInitiator] Generated systemPrompt:', systemPrompt?.substring(0, 100));
+    console.log('🔍 [AnalysisWorkflowInitiator] Generated dataPathDict:', dataPathDict);
+
+    // Update Redux state - MATCHES tg-application exactly
     setSelectedAnalysisExperiment(experiment);
+    setAnalysisSystemPrompt(systemPrompt);
+    setAnalysisDataPathDict(dataPathDict);
+    
     setShowExperimentList(false);
     if (onExperimentSelect) {
       onExperimentSelect(experiment);
@@ -38,7 +155,10 @@ export default function AnalysisWorkflowInitiator({ onStart, onExperimentSelect 
   };
 
   const handleClearExperiment = () => {
+    // ⭐ MATCHES tg-application: Clear all analysis state
     clearSelectedAnalysisExperiment();
+    setAnalysisSystemPrompt(null);
+    setAnalysisDataPathDict(null);
   };
 
   const getModuleIcon = (moduleName) => {
@@ -131,8 +251,37 @@ export default function AnalysisWorkflowInitiator({ onStart, onExperimentSelect 
       {/* Experiment List */}
       {showExperimentList && (
         <View style={styles.experimentList}>
-          {experimentsLoading ? (
+          {experimentsLoading && !loadingTimeout ? (
             <Text style={styles.loadingText}>Loading experiments...</Text>
+          ) : loadingTimeout || hasError ? (
+            <View style={styles.emptyState}>
+              <MaterialCommunityIcons name="alert-circle-outline" size={40} color="#EF4444" />
+              <Text style={[styles.emptyText, { color: '#EF4444', fontWeight: '600' }]}>
+                {loadingTimeout ? "Service Unavailable" : "Unable to Load"}
+              </Text>
+              <Text style={[styles.emptyText, { fontSize: 12, marginTop: 4 }]}>
+                {loadingTimeout 
+                  ? "Backend temporarily unavailable"
+                  : "Failed to fetch experiments"
+                }
+              </Text>
+              <TouchableOpacity 
+                onPress={() => {
+                  setHasError(false);
+                  setLoadingTimeout(false);
+                  fetchExperiments();
+                }}
+                style={{ 
+                  marginTop: 8,
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  backgroundColor: "#3B82F6",
+                  borderRadius: 6,
+                }}
+              >
+                <Text style={{ color: "#FFFFFF", fontWeight: "600", fontSize: 12 }}>Retry</Text>
+              </TouchableOpacity>
+            </View>
           ) : completedExperiments.length === 0 ? (
             <View style={styles.emptyState}>
               <MaterialCommunityIcons name="flask-empty-outline" size={40} color="#D1D5DB" />

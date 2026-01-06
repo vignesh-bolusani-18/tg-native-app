@@ -54,26 +54,57 @@ export default function useExperiment() {
     try {
       const response = await getAllExperiments(company.companyID);
       console.log('📦 [useExperiment] Response received:', response ? 'yes' : 'no');
+      console.log('   Response type:', typeof response);
+      console.log('   Is array:', Array.isArray(response));
       
-      if (response && response.experiments) {
-        console.log('✅ [useExperiment] Experiments found:', response.experiments.length);
-        console.log('   Experiment IDs:', response.experiments.map(e => e.experimentID || e.id).join(', '));
-        dispatch(setExperimentsList(response.experiments));
-        hasFetchedRef.current = true;
-        setLoading(false);
-        return response.experiments;
-      } else if (Array.isArray(response)) {
-        console.log('✅ [useExperiment] Experiments array:', response.length);
-        dispatch(setExperimentsList(response));
-        hasFetchedRef.current = true;
-        setLoading(false);
-        return response;
+      // Handle different response structures
+      let experimentsList = [];
+      
+      if (response) {
+        // Case 1: response.experiments (most common)
+        if (response.experiments && Array.isArray(response.experiments)) {
+          experimentsList = response.experiments;
+          console.log('✅ [useExperiment] Found response.experiments:', experimentsList.length);
+        }
+        // Case 2: Direct array response
+        else if (Array.isArray(response)) {
+          experimentsList = response;
+          console.log('✅ [useExperiment] Direct array response:', experimentsList.length);
+        }
+        // Case 3: response.data.experiments
+        else if (response.data && Array.isArray(response.data.experiments)) {
+          experimentsList = response.data.experiments;
+          console.log('✅ [useExperiment] Found response.data.experiments:', experimentsList.length);
+        }
+        // Case 4: response.data as array
+        else if (Array.isArray(response.data)) {
+          experimentsList = response.data;
+          console.log('✅ [useExperiment] Found response.data array:', experimentsList.length);
+        }
+        else {
+          console.warn('⚠️ [useExperiment] Unknown response structure');
+          console.log('   Available keys:', Object.keys(response).join(', '));
+        }
       }
       
-      console.warn('⚠️ [useExperiment] No experiments in response');
-      dispatch(setExperimentsList([]));
+      if (experimentsList.length > 0) {
+        console.log('✅ [useExperiment] Experiments found:', experimentsList.length);
+        console.log('   First experiment keys:', Object.keys(experimentsList[0]).join(', '));
+        console.log('   Experiment IDs:', experimentsList.slice(0, 3).map(e => e.experimentID || e.id || 'no-id').join(', '));
+        
+        // ⭐ DEBUG: Log first experiment details to verify flattening worked
+        const first = experimentsList[0];
+        console.log('   First experiment status:', first.experimentStatus, '(type:', typeof first.experimentStatus, ')');
+        console.log('   First experiment module:', first.experimentModuleName);
+        console.log('   First experiment inTrash:', first.inTrash);
+      } else {
+        console.warn('⚠️ [useExperiment] No experiments in response');
+      }
+      
+      dispatch(setExperimentsList(experimentsList));
+      hasFetchedRef.current = true;
       setLoading(false);
-      return [];
+      return experimentsList;
     } catch (err) {
       console.error('❌ [useExperiment] Error fetching experiments:', err);
       console.error('   Error details:', err.message);

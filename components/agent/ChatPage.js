@@ -327,12 +327,29 @@ const ChatPage = () => {
     return suggestionPrompts;
   };
 
+  /**
+   * ⭐ MATCHES tg-application: Parse experimentStatus helper
+   * experimentStatus can be a JSON string like {"status": "Completed"} or plain "Completed"
+   */
+  const parseExperimentStatus = (input) => {
+    if (!input) return null;
+    try {
+      const json = JSON.parse(input);
+      if (typeof json === "object" && json !== null) {
+        return json.status;
+      }
+    } catch (_e) {
+      return input;
+    }
+    return input;
+  };
+
   const completedExperiments = useMemo(() => {
     return (
       experiments_list?.filter(
         (experiment) =>
           !experiment.inTrash &&
-          experiment.experimentStatus === "Completed" && // Simplified parsing
+          parseExperimentStatus(experiment.experimentStatus) === "Completed" &&
           !experiment.isArchive &&
           ["demand-planning", "inventory-optimization", "price-promotion-optimization"].includes(
             experiment.experimentModuleName
