@@ -1,11 +1,12 @@
 /**
  * 🤖 AI MESSAGE - Display AI responses with tool calls, final answer, and workflow actions
  * Includes workflow action sections: Approval, Data Upload, Tags, Context Questions, etc.
+ * ⭐ MATCHES tg-application: Full markdown rendering support
  */
 
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 // Hooks
 import { useVibe } from '../../../hooks/useVibe';
@@ -22,6 +23,219 @@ import TagsSection from '../actions/TagsSection';
 
 // Assets
 const TGLogo = require('../../../assets/images/icon.png');
+
+/**
+ * ⭐ MATCHES tg-application: Render bold text (**text**)
+ */
+const renderBoldText = (text) => {
+  if (!text || !text.includes('**')) return <Text>{text}</Text>;
+  
+  const parts = text.split(/(\*\*.*?\*\*)/g);
+  return parts.map((part, index) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return (
+        <Text key={index} style={{ fontWeight: '600', color: '#111827' }}>
+          {part.slice(2, -2)}
+        </Text>
+      );
+    }
+    return <Text key={index}>{part}</Text>;
+  });
+};
+
+/**
+ * ⭐ MATCHES tg-application: Format AI response with markdown
+ * Handles: headers (#), lists (- or •), numbered lists (1.), code blocks, bold
+ */
+const formatAIResponse = (text) => {
+  if (!text) return null;
+  
+  const lines = text.split('\n');
+  const result = [];
+  let i = 0;
+  let inCodeBlock = false;
+  let codeLines = [];
+  let tableRows = [];
+  let inTable = false;
+
+  while (i < lines.length) {
+    const line = lines[i];
+    const trimmedLine = line.trim();
+
+    // Handle fenced code blocks ```...```
+    if (trimmedLine.startsWith('```')) {
+      if (!inCodeBlock) {
+        inCodeBlock = true;
+        codeLines = [];
+        i++;
+        continue;
+      } else {
+        inCodeBlock = false;
+        const codeContent = codeLines.join('\n');
+        result.push(
+          <View key={`code-${i}`} style={markdownStyles.codeBlock}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <Text style={markdownStyles.codeText}>{codeContent}</Text>
+            </ScrollView>
+          </View>
+        );
+        i++;
+        continue;
+      }
+    }
+
+    if (inCodeBlock) {
+      codeLines.push(line);
+      i++;
+      continue;
+    }
+
+    // Handle markdown tables (lines with |)
+    if (trimmedLine.includes('|') && trimmedLine.startsWith('|')) {
+      tableRows.push(trimmedLine);
+      inTable = true;
+      i++;
+      continue;
+    } else if (inTable && tableRows.length > 0) {
+      // Render the table
+      result.push(renderMarkdownTable(tableRows, i));
+      tableRows = [];
+      inTable = false;
+      // Don't increment i, process current line
+      continue;
+    }
+
+    // Skip empty lines but add spacing
+    if (!trimmedLine) {
+      if (i > 0 && result.length > 0) {
+        result.push(<View key={`spacer-${i}`} style={{ height: 8 }} />);
+      }
+      i++;
+      continue;
+    }
+
+    // Check for markdown-style headings (#, ##, etc.)
+    const headingMatch = trimmedLine.match(/^(#{1,6})\s+(.+)$/);
+    if (headingMatch) {
+      const level = headingMatch[1].length;
+      const content = headingMatch[2];
+      const fontSize = level === 1 ? 18 : level === 2 ? 16 : level === 3 ? 15 : 14;
+      
+      result.push(
+        <Text key={`heading-${i}`} style={[markdownStyles.heading, { fontSize }]}>
+          {renderBoldText(content)}
+        </Text>
+      );
+      i++;
+      continue;
+    }
+
+    // Check for numbered lists (1., 2., etc.)
+    const numberedMatch = trimmedLine.match(/^(\d+)\.\s+(.+)$/);
+    if (numberedMatch) {
+      result.push(
+        <View key={`num-${i}`} style={markdownStyles.listItem}>
+          <Text style={markdownStyles.listNumber}>{numberedMatch[1]}.</Text>
+          <Text style={markdownStyles.listText}>{renderBoldText(numberedMatch[2])}</Text>
+        </View>
+      );
+      i++;
+      continue;
+    }
+
+    // Check for bullet points (- or •)
+    const bulletMatch = trimmedLine.match(/^[-•]\s+(.+)$/);
+    if (bulletMatch) {
+      result.push(
+        <View key={`bullet-${i}`} style={markdownStyles.listItem}>
+          <Text style={markdownStyles.bulletPoint}>•</Text>
+          <Text style={markdownStyles.listText}>{renderBoldText(bulletMatch[1])}</Text>
+        </View>
+      );
+      i++;
+      continue;
+    }
+
+    // Check for headers (lines that end with :)
+    if (trimmedLine.endsWith(':') && trimmedLine.length < 60) {
+      result.push(
+        <Text key={`subhead-${i}`} style={markdownStyles.subHeading}>
+          {renderBoldText(trimmedLine)}
+        </Text>
+      );
+      i++;
+      continue;
+    }
+
+    // Regular paragraph
+    result.push(
+      <Text key={`para-${i}`} style={markdownStyles.paragraph}>
+        {renderBoldText(trimmedLine)}
+      </Text>
+    );
+    i++;
+  }
+
+  // Handle any remaining table rows
+  if (tableRows.length > 0) {
+    result.push(renderMarkdownTable(tableRows, 'final'));
+  }
+
+  return result;
+};
+
+/**
+ * ⭐ MATCHES tg-application: Render markdown table
+ */
+const renderMarkdownTable = (rows, keyPrefix) => {
+  if (!rows || rows.length === 0) return null;
+  
+  // Parse table rows
+  const parsedRows = rows
+    .filter(row => !row.match(/^\|[-:\s|]+\|$/)) // Filter out separator rows (|---|---|)
+    .map(row => {
+      return row
+        .split('|')
+        .filter(cell => cell.trim() !== '')
+        .map(cell => cell.trim());
+    });
+  
+  if (parsedRows.length === 0) return null;
+  
+  const headerRow = parsedRows[0];
+  const dataRows = parsedRows.slice(1);
+  
+  return (
+    <View key={`table-${keyPrefix}`} style={markdownStyles.tableContainer}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={true}>
+        <View style={markdownStyles.table}>
+          {/* Header Row */}
+          <View style={markdownStyles.tableHeaderRow}>
+            {headerRow.map((cell, cellIndex) => (
+              <View key={`header-${cellIndex}`} style={markdownStyles.tableHeaderCell}>
+                <Text style={markdownStyles.tableHeaderText}>{cell}</Text>
+              </View>
+            ))}
+          </View>
+          
+          {/* Data Rows */}
+          {dataRows.map((row, rowIndex) => (
+            <View key={`row-${rowIndex}`} style={[
+              markdownStyles.tableRow,
+              rowIndex % 2 === 0 ? markdownStyles.tableRowEven : null
+            ]}>
+              {row.map((cell, cellIndex) => (
+                <View key={`cell-${rowIndex}-${cellIndex}`} style={markdownStyles.tableCell}>
+                  <Text style={markdownStyles.tableCellText}>{cell}</Text>
+                </View>
+              ))}
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+    </View>
+  );
+};
 
 export default function AIMessage({ message, toolsUsed = [], isStreaming = false }) {
   const { currentConversation } = useVibe();
@@ -109,11 +323,11 @@ export default function AIMessage({ message, toolsUsed = [], isStreaming = false
             </View>
           )}
 
-          {/* AI Response Text */}
+          {/* AI Response Text - ⭐ MATCHES tg-application: Use formatAIResponse for markdown */}
           {finalAnswer && (
-            <Text style={styles.answerText}>
-              {finalAnswer}
-            </Text>
+            <View style={styles.answerContainer}>
+              {formatAIResponse(finalAnswer)}
+            </View>
           )}
         </View>
 
@@ -291,6 +505,9 @@ const styles = StyleSheet.create({
   finalAnswerSection: {
     padding: 16,
   },
+  answerContainer: {
+    flex: 1,
+  },
   answerText: {
     fontSize: 14,
     lineHeight: 22,
@@ -306,5 +523,119 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
     fontStyle: 'italic',
     fontSize: 12,
+  },
+});
+
+/**
+ * ⭐ MATCHES tg-application: Markdown-specific styles
+ */
+const markdownStyles = StyleSheet.create({
+  heading: {
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 12,
+    marginTop: 8,
+  },
+  subHeading: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 8,
+    marginTop: 12,
+  },
+  paragraph: {
+    fontSize: 14,
+    lineHeight: 22,
+    color: '#1F2937',
+    fontWeight: '400',
+    marginBottom: 8,
+  },
+  listItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  bulletPoint: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginRight: 8,
+    width: 16,
+    textAlign: 'center',
+  },
+  listNumber: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6B7280',
+    marginRight: 8,
+    minWidth: 20,
+  },
+  listText: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 22,
+    color: '#1F2937',
+  },
+  codeBlock: {
+    backgroundColor: '#f9fafb',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    padding: 12,
+    marginVertical: 12,
+  },
+  codeText: {
+    fontFamily: 'monospace',
+    fontSize: 12,
+    lineHeight: 18,
+    color: '#1F2937',
+  },
+  // Table styles
+  tableContainer: {
+    marginVertical: 12,
+    borderRadius: 8,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  table: {
+    minWidth: '100%',
+  },
+  tableHeaderRow: {
+    flexDirection: 'row',
+    backgroundColor: '#f3f4f6',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  tableHeaderCell: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    minWidth: 100,
+    borderRightWidth: 1,
+    borderRightColor: '#e5e7eb',
+  },
+  tableHeaderText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#374151',
+    textAlign: 'left',
+  },
+  tableRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  tableRowEven: {
+    backgroundColor: '#f9fafb',
+  },
+  tableCell: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    minWidth: 100,
+    borderRightWidth: 1,
+    borderRightColor: '#e5e7eb',
+  },
+  tableCellText: {
+    fontSize: 13,
+    color: '#1F2937',
   },
 });

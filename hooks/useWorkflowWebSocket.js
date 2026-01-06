@@ -626,6 +626,10 @@ export const useWorkflowWebSocket = (workflowName = "master_workflow") => {
           reconnectAttemptsRef.current = 0; // Reset reconnect attempts
           setAuthToken(null); // Force new token generation
           
+          // ⭐ MATCHES tg-application: Reset waiting state when app returns from background
+          // This prevents the send button from being stuck in loading state
+          dispatch({ type: 'vibe/setWaitingForAI', payload: false });
+          
           // Small delay to ensure app is fully active
           setTimeout(async () => {
             await connect();

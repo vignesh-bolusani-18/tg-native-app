@@ -220,23 +220,23 @@ const LandingInputSection = ({
         {/* Send Button */}
         <TouchableOpacity
           onPress={() => handleSend(inputValue)}
-          disabled={isSendDisabled && canSendMessageProp}
+          disabled={isSendDisabled || !canSendMessageProp}
           style={{
             width: 32,
             height: 32,
             borderRadius: 16,
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: hasText && !isEditorDisabled ? '#111827' : '#f3f4f6',
+            backgroundColor: hasText && !isEditorDisabled && canSendMessageProp ? '#10B981' : '#f3f4f6',
           }}
         >
-          {!canSendMessageProp && hasText ? (
-            <ActivityIndicator size="small" color="white" />
+          {isWaitingForAI ? (
+            <ActivityIndicator size="small" color="#10B981" />
           ) : (
             <MaterialCommunityIcons 
               name="arrow-up" 
               size={20} 
-              color={hasText && !isEditorDisabled ? "white" : "#9ca3af"} 
+              color={hasText && !isEditorDisabled && canSendMessageProp ? "white" : "#9ca3af"} 
             />
           )}
         </TouchableOpacity>

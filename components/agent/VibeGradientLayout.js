@@ -45,6 +45,7 @@ const VibeGradientLayout = ({ children }) => {
     conversations,
     currentConversation,
     setHasConversation,
+    setIsWaitingForAI,
     createNewChat,
     clearError,
     langgraphState,
@@ -56,6 +57,7 @@ const VibeGradientLayout = ({ children }) => {
     setIsSidebarOpen,
     renameConversationFunction,
     deleteConversationFunction,
+    clearSelectedAnalysisExperiment,
   } = useVibe();
 
   const { discardExperiment: discardExperimentModule } = useModule();
@@ -161,6 +163,10 @@ const VibeGradientLayout = ({ children }) => {
     try {
       await createNewChat("master_workflow", "New Chat");
       setHasConversation(true);
+      // ⭐ MATCHES tg-application: Reset waiting state when creating new chat
+      setIsWaitingForAI(false);
+      // Clear any selected experiment
+      clearSelectedAnalysisExperiment();
       handleDiscardExperiment();
       if (isMobile) setIsSidebarOpen(false); // Close sidebar on mobile
     } catch (err) {
@@ -171,6 +177,9 @@ const VibeGradientLayout = ({ children }) => {
   const handleSelectConversation = async (conversation) => {
     console.log("Switching to conversation:", conversation.conversationID);
     try {
+      // ⭐ MATCHES tg-application: Reset waiting state when switching conversations
+      setIsWaitingForAI(false);
+      
       if (
         currentConversationId &&
         currentConversation?.messages?.length > 0 &&

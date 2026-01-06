@@ -14,11 +14,13 @@ import {
   View,
 } from "react-native";
 
+import useAuth from "../../../hooks/useAuth";
 import useDataset from "../../../hooks/useDataset";
 import { useVibe } from "../../../hooks/useVibe";
 
 const DatasetSelector = ({ visible, onClose, onSelectDataset }) => {
   const { datasets, loading, fetchDatasets } = useDataset();
+  const { currentCompany } = useAuth();
   const { selectedDatasets, addDatasetToSelection, removeDatasetFromSelection } = useVibe();
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredDatasets, setFilteredDatasets] = useState([]);
@@ -57,7 +59,14 @@ const DatasetSelector = ({ visible, onClose, onSelectDataset }) => {
     if (isSelected) {
       removeDatasetFromSelection(datasetName);
     } else {
-      addDatasetToSelection(datasetName, false, '', '');
+      // ⭐ MATCHES tg-application: Pass isUploaded based on datasetSourceName
+      const isUploaded = dataset.datasetSourceName === "File Upload";
+      addDatasetToSelection(
+        datasetName, 
+        isUploaded, 
+        currentCompany?.companyName || '', 
+        currentCompany?.companyID || ''
+      );
     }
     
     if (onSelectDataset) {
