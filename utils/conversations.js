@@ -1,8 +1,10 @@
 /**
  * Conversation Management Utilities
+ * Follows tg-application pattern: JWT-signed conversation endpoints with ?t= query params
  */
 
 import { apiConfig } from './apiConfig';
+import { generateToken } from './jwtUtils';
 
 const getHeaders = (token) => {
   if (!apiConfig.apiKey) {
@@ -15,13 +17,40 @@ const getHeaders = (token) => {
   };
 };
 
-export const createConversation = async ({ token, userID, companyID }) => {
+/**
+ * POST /conversation?t=
+ * Create a new conversation with JWT-encoded payload
+ */
+export const createConversation = async ({ token, userID, companyID, conversationID, conversation_name = 'New Chat', messageCount = 0, workflowsUsed = [], experiments = [] }) => {
   try {
-    const response = await fetch(`${apiConfig.apiBaseURL}/create-conversation`, {
+    const timestamp = Date.now();
+    
+    // Build conversation data token payload
+    const conversationDataToken = await generateToken({
+      conversationID,
+      userID,
+      companyID,
+      conversation_name,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      messageCount,
+      workflowsUsed,
+      experiments,
+    }, token);
+
+    const url = `${apiConfig.apiBaseURL}/conversation?t=${timestamp}`;
+    
+    const response = await fetch(url, {
       method: 'POST',
       headers: getHeaders(token),
-      body: JSON.stringify({ userID, companyID }),
+      body: JSON.stringify({ conversationDataToken }),
     });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to create conversation: ${response.status} ${errorText}`);
+    }
+
     const data = await response.json();
     return data;
   } catch (error) {
@@ -30,11 +59,113 @@ export const createConversation = async ({ token, userID, companyID }) => {
   }
 };
 
+/**
+ * DELETE /conversation?deleteConversationToken=...&t=
+ * Delete a conversation using JWT-encoded payload
+ */
+export const deleteConversation = async ({ token, conversationID, userID, companyID }) => {
+  try {
+    const timestamp = Date.now();
+    
+    // Build delete conversation token payload
+    const deleteConversationToken = await generateToken({
+      conversationID,
+      userID,
+      companyID,
+    }, token);
+
+    const url = `${apiConfig.apiBaseURL}/conversation?deleteConversationToken=${encodeURIComponent(deleteConversationToken)}&t=${timestamp}`;
+    
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: getHeaders(token),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to delete conversation: ${response.status} ${errorText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error deleting conversation:', error);
+    throw error;
+  }
+};
+
+/**
+ * POST /renameConversation?t=
+ * Rename a conversation using JWT-encoded payload
+ */
+export const renameConversation = async ({ token, conversationID, userID, companyID, title }) => {
+  try {
+    const timestamp = Date.now();
+    
+    // Build rename conversation token payload
+    const conversationDataToken = await generateToken({
+      conversationID,
+      userID,
+      companyID,
+      conversation_name: title,
+    }, token);
+
+    const url = `${apiConfig.apiBaseURL}/renameConversation?t=${timestamp}`;
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: getHeaders(token),
+      body: JSON.stringify({ conversationDataToken }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to rename conversation: ${response.status} ${errorText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error renaming conversation:', error);
+    throw error;
+  }
+};
+
+/**
+ * GET /conversationByCompany?t=&sendHash=true
+ * Fetch all conversations for the company from token
+ */
+export const getConversationsByCompany = async ({ token }) => {
+  try {
+    const timestamp = Date.now();
+    const url = `${apiConfig.apiBaseURL}/conversationByCompany?t=${timestamp}&sendHash=true`;
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: getHeaders(token),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to fetch conversations by company: ${response.status} ${errorText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.warn('getConversationsByCompany:', error.message);
+    throw error;
+  }
+};
+
+/**
+ * GET /conversationByUser?t=
+ * Fetch all conversations for the user from token
+ */
 export const getConversations = async ({ token }) => {
   try {
-    // Updated to match the pattern of getConversationsByCompany
-    // userID is extracted from token by backend
-    const url = `${apiConfig.apiBaseURL}/conversationByUser?t=${Date.now()}&sendHash=true`;
+    const timestamp = Date.now();
+    const url = `${apiConfig.apiBaseURL}/conversationByUser?t=${timestamp}`;
     
     const response = await fetch(url, {
       method: 'GET',
@@ -54,15 +185,15 @@ export const getConversations = async ({ token }) => {
   }
 };
 
-export const getConversationsByCompany = async ({ token }) => {
+/**
+ * GET /conversations/any?t=
+ * Fetch all conversations (any user/company)
+ */
+export const getAllConversations = async ({ token }) => {
   try {
-    // Removed companyID from URL params as it's extracted from the token
-    // Added timestamp and sendHash as per working web app
-    const url = `${apiConfig.apiBaseURL}/conversationByCompany?t=${Date.now()}&sendHash=true`;
+    const timestamp = Date.now();
+    const url = `${apiConfig.apiBaseURL}/conversations/any?t=${timestamp}`;
     
-    // Debug logging disabled for production
-    // console.log('Fetching conversations from:', url);
-
     const response = await fetch(url, {
       method: 'GET',
       headers: getHeaders(token),
@@ -70,44 +201,13 @@ export const getConversationsByCompany = async ({ token }) => {
     
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Failed to fetch conversations by company: ${response.status} ${errorText}`);
+      throw new Error(`Failed to fetch all conversations: ${response.status} ${errorText}`);
     }
 
     const data = await response.json();
     return data;
   } catch (error) {
-    // Only log warning instead of error to reduce console spam
-    console.warn('getConversationsByCompany:', error.message);
+    console.error('Error getting all conversations:', error);
     throw error;
   }
 };
-
-export const deleteConversation = async ({ token, conversationID }) => {
-  try {
-    const response = await fetch(`${apiConfig.apiBaseURL}/delete-conversation`, {
-      method: 'POST',
-      headers: getHeaders(token),
-      body: JSON.stringify({ conversationID }),
-    });
-    return await response.json();
-  } catch (error) {
-    console.error('Error deleting conversation:', error);
-    throw error;
-  }
-};
-
-export const updateConversationTitle = async ({ token, conversationID, title }) => {
-  try {
-    const response = await fetch(`${apiConfig.apiBaseURL}/update-conversation-title`, {
-      method: 'POST',
-      headers: getHeaders(token),
-      body: JSON.stringify({ conversationID, title }),
-    });
-    return await response.json();
-  } catch (error) {
-    console.error('Error updating conversation title:', error);
-    throw error;
-  }
-};
-
-export const renameConversation = updateConversationTitle;

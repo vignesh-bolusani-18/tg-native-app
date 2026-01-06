@@ -25,6 +25,7 @@ import {
     deleteConversation,
     getConversations,
     getConversationsByCompany,
+  renameConversation,
 } from "../../utils/conversations";
 import { getCreditScore, updateCredits } from "../../utils/getAndUpdateCredits";
 import { fetchJsonFromS3 } from "../../utils/s3Utils";
@@ -363,11 +364,16 @@ export const addNewConversationAction = (tokenPayload) => async (dispatch, getSt
     
     console.log("addNewConversationAction: Using token type:", refreshTokenCompany ? "refresh_token_company ✅" : "fallback ⚠️");
 
-    // Call API to create conversation in backend
+    // Call API to create conversation in backend with full JWT payload
     const response = await createConversation({
       token,
       userID: tokenPayload.userID,
-      companyID: tokenPayload.companyID
+      companyID: tokenPayload.companyID,
+      conversationID: tokenPayload.conversationID,
+      conversation_name: tokenPayload.conversation_name || 'New Chat',
+      messageCount: tokenPayload.messageCount || 0,
+      workflowsUsed: tokenPayload.workflowsUsed || [],
+      experiments: tokenPayload.experiments || [],
     });
 
     console.log("addNewConversationAction: API response:", response);
@@ -425,20 +431,36 @@ export const addConversationFromSidebarAction =
 export const renameConversationAction =
   (tokenPayload) => async (dispatch, getState) => {
     try {
-      console.log("renameConversationAction: SKIPPING (endpoint misconfigured):", tokenPayload);
+      console.log("renameConversationAction: Renaming conversation:", tokenPayload);
+
+      // CRITICAL: Use refresh_token_company
+      const { getItem } = await import('../../utils/storage');
+      const refreshTokenCompany = await getItem('refresh_token_company');
+      const fallbackToken = getState().auth.userData?.token;
+      const token = refreshTokenCompany || fallbackToken;
       
-      // TODO: Fix this endpoint to use JWT-signed body like web app
-      // Currently causing "Invalid key=value pair" errors
-      // For now, just update Redux state without API call
+      console.log("renameConversationAction: Using token type:", refreshTokenCompany ? "refresh_token_company ✅" : "fallback ⚠️");
       
+      // Call API to rename conversation with JWT-signed payload
+      const response = await renameConversation({
+        token,
+        conversationID: tokenPayload.conversationID,
+        userID: tokenPayload.userID,
+        companyID: tokenPayload.companyID,
+        title: tokenPayload.newConversationName || tokenPayload.title,
+      });
+      
+      console.log("renameConversationAction: API response:", response);
+      
+      // Update Redux state with new name
       dispatch(
         updateConversationName({
           conversationID: tokenPayload.conversationID,
-          newConversationName: tokenPayload.newConversationName,
+          newConversationName: tokenPayload.newConversationName || tokenPayload.title,
         })
       );
       
-      return { success: true, skipped: true };
+      return response;
     } catch (error) {
       console.error("renameConversationAction Error:", error.message);
       dispatch(setError(error.message));
@@ -460,7 +482,9 @@ export const deleteConversationAction = (tokenPayload) => async (dispatch, getSt
     
     const response = await deleteConversation({
       token,
-      conversationID: tokenPayload.conversationID
+      conversationID: tokenPayload.conversationID,
+      userID: tokenPayload.userID,
+      companyID: tokenPayload.companyID,
     });
     console.log("deleteConversationAction: API response:", response);
     dispatch(removeConversation(tokenPayload.conversationID));

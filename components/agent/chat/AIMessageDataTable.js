@@ -5,9 +5,14 @@
 
 import { MaterialIcons } from '@expo/vector-icons';
 import { documentDirectory, writeAsStringAsync } from 'expo-file-system';
+import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import React, { useState } from 'react';
 import { Alert, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { apiConfig } from '../../../utils/apiConfig';
+import { generateToken } from '../../../utils/jwtUtils';
+import useAuth from '../../../hooks/useAuth';
+import { useSelector } from 'react-redux';
 
 // Use React Native's deprecated Clipboard or expo-clipboard if available
 let Clipboard;
@@ -54,6 +59,8 @@ export default function AIMessageDataTable({
   const [page, setPage] = useState(1);
   const [codeModalVisible, setCodeModalVisible] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const { userData } = useAuth();
+  const currentCompany = useSelector(state => state.vibe?.currentCompany);
 
   // Normalize and limit data
   const rows = normalizeData(data);
@@ -89,6 +96,100 @@ export default function AIMessageDataTable({
       .join('\n');
 
     return `${header}\n${body}`;
+  };
+
+  // Helper function to parse dataset path
+  const parseDatasetPath = (path) => {
+    if (!path) return 'dataset';
+    const parts = path.split('/');
+    return parts[parts.length - 1] || 'dataset';
+  };
+
+  // Handle S3 Parquet file download using Query Engine presigned URL
+  const handleS3Download = async () => {
+    if (!hasS3Data || !dataPath) {
+      Alert.alert('Error', 'S3 data path not available');
+      return;
+    }
+
+    setDownloading(true);
+    try {
+      const token = userData?.token;
+      if (!token) {
+        throw new Error('Authentication token not found');
+      }
+
+      // Build download token payload following tg-application pattern
+      const downloadTokenPayload = {
+        filePath: dataPath,
+        fileName: parseDatasetPath(dataPath),
+        companyName: currentCompany?.companyName || 'default',
+        filterData: null,
+        totalRows: dataTotalRows,
+      };
+
+      // Generate JWT-signed download token
+      const downloadToken = await generateToken(downloadTokenPayload, token);
+      const timestamp = Date.now();
+
+      // Request presigned URL from query engine
+      const queryEngineBaseUrl = apiConfig.queryEngineAPIBaseURL || 'https://query-engine.truegradient.ai';
+      const downloadUrl = `${queryEngineBaseUrl}/download?t=${timestamp}`;
+
+      const response = await fetch(downloadUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'x-api-key': apiConfig.queryEngineAPIKey,
+        },
+        body: JSON.stringify({ downloadToken }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to get presigned URL: ${response.status} ${errorText}`);
+      }
+
+      const { downloadUrl: presignedUrl } = await response.json();
+
+      // Fetch the actual file from presigned URL
+      if (Platform.OS === 'web') {
+        const fileResponse = await fetch(presignedUrl);
+        if (!fileResponse.ok) {
+          throw new Error(`Failed to download file: ${fileResponse.status}`);
+        }
+        const blob = await fileResponse.blob();
+        const fileName = `${parseDatasetPath(dataPath)}.parquet`;
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      } else {
+        // Mobile download using expo-file-system downloadAsync
+        const fileName = `${parseDatasetPath(dataPath)}.parquet`;
+        const fileUri = `${documentDirectory}${fileName}`;
+        const downloadResult = await FileSystem.downloadAsync(presignedUrl, fileUri);
+
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(downloadResult.uri, {
+            mimeType: 'application/octet-stream',
+            dialogTitle: 'Download Parquet File',
+          });
+        } else {
+          Alert.alert('Success', `File saved to: ${downloadResult.uri}`);
+        }
+      }
+    } catch (error) {
+      console.error('S3 Download error:', error);
+      Alert.alert('Error', `Failed to download file: ${error.message}`);
+    } finally {
+      setDownloading(false);
+    }
   };
 
   // Handle CSV download
@@ -200,7 +301,7 @@ export default function AIMessageDataTable({
           {/* Download Button */}
           <TouchableOpacity 
             style={[styles.actionButton, downloading && styles.actionButtonDisabled]}
-            onPress={handleDownload}
+            onPress={hasS3Data ? handleS3Download : handleDownload}
             disabled={downloading}
           >
             <MaterialIcons 
@@ -209,7 +310,7 @@ export default function AIMessageDataTable({
               color="#374151" 
             />
             <Text style={styles.actionButtonText}>
-              {downloading ? 'Saving...' : 'Download'}
+              {downloading ? 'Saving...' : hasS3Data ? 'Download (Parquet)' : 'Download'}
             </Text>
           </TouchableOpacity>
         </View>
