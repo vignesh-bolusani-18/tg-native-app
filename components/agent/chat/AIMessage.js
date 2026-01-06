@@ -1,80 +1,76 @@
 /**
- * 🤖 AI MESSAGE - Display AI responses with tool calls and final answer
- * Converted from: D:\TrueGradient\tg-application\src\components\VibeGradient\AIMessage.js
+ * 🤖 AI MESSAGE - Display AI responses with tool calls, final answer, and workflow actions
+ * Includes workflow action sections: Approval, Data Upload, Tags, Context Questions, etc.
  */
 
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 
-export default function AIMessage({ message, toolsUsed = [] }) {
+// Hooks
+import { useVibe } from '../../../hooks/useVibe';
+
+// Action Sections
+import ApprovalSection from '../actions/ApprovalSection';
+import AdvancedQuestionsSection from '../actions/AdvancedQuestionsSection';
+import ContextQuestionsSection from '../actions/ContextQuestionsSection';
+import DataUploadSection from '../actions/DataUploadSection';
+import ExperimentExecutorSection from '../actions/ExperimentExecutorSection';
+import ExperimentProgressTracker from '../actions/ExperimentProgressTracker';
+import SampleDataSection from '../actions/SampleDataSection';
+import TagsSection from '../actions/TagsSection';
+
+// Assets
+const TGLogo = require('../../../assets/images/icon.png');
+
+export default function AIMessage({ message, toolsUsed = [], isStreaming = false }) {
+  const { currentConversation } = useVibe();
+  
+  // Extract experiment info
+  const experiments = currentConversation?.experiments;
+  const experimentTriggered = experiments && typeof experiments === 'object' && Object.keys(experiments).length > 0;
+  const experimentId = experimentTriggered ? Object.keys(experiments)[0] : null;
+
   // Extract tool calls from message if available
   const toolCalls = message.toolCalls || [];
 
+  // Extract langgraph state for workflow actions
+  const langState = message?.langgraphState;
+
+  // Determine which workflow action sections to show
+  const needsApproval = langState?.next_step?.user === 'approve_module' || langState?.next_step?.user === 'approved';
+  const needsUploadData = langState?.next_step?.user === 'upload_data' || langState?.next_step?.user === 'uploaded_data';
+  const hasSampleData = message?.sampleData;
+  const hasTagsData = message?.tagsData;
+  const showContextQuestions = message?.nodeName === 'context_questions_generator';
+  const showAdvancedQuestions = message?.nodeName === 'advanced_questions_generator';
+  const showExperimentValidator = message?.nodeName === 'experiment_validator';
+  const showExperimentProgressTracker = message?.nodeName === 'workflow_complete';
+
   // Extract final answer (remove "Final Answer:" prefix if present)
-  const finalAnswer = message.content.includes('Final Answer:')
+  const finalAnswer = message.content?.includes('Final Answer:')
     ? message.content.split('Final Answer:')[1].trim()
     : message.content;
 
   // Function to beautify tool names
   const beautifyToolName = (toolName) => {
     return toolName
-      .replace(/_/g, ' ') // Replace underscores with spaces
-      .replace(/\b\w/g, (char) => char.toUpperCase()); // Capitalize first letter
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, (char) => char.toUpperCase());
   };
 
-  // Function to format the final answer with better typography
-  const formatFinalAnswer = (text) => {
-    if (!text) return null;
-
-    // Split by lines to handle different formatting
-    const lines = text.split('\n').filter((line) => line.trim());
-
-    return lines.map((line, index) => {
-      const trimmedLine = line.trim();
-
-      // Check for numbered lists (1., 2., etc.)
-      const numberedMatch = trimmedLine.match(/^(\d+)\.\s+(.+)$/);
-      if (numberedMatch) {
-        return (
-          <View key={index} style={styles.listItem}>
-            <Text style={styles.numberLabel}>{numberedMatch[1]}.</Text>
-            <Text style={styles.listText}>{numberedMatch[2]}</Text>
-          </View>
-        );
-      }
-
-      // Check for bullet points (- or •)
-      const bulletMatch = trimmedLine.match(/^[-•]\s+(.+)$/);
-      if (bulletMatch) {
-        return (
-          <View key={index} style={styles.listItem}>
-            <Text style={styles.bulletLabel}>•</Text>
-            <Text style={styles.listText}>{bulletMatch[1]}</Text>
-          </View>
-        );
-      }
-
-      // Check for headers (lines that end with :)
-      if (trimmedLine.endsWith(':')) {
-        return (
-          <Text key={index} style={styles.headerText}>
-            {trimmedLine}
-          </Text>
-        );
-      }
-
-      // Regular paragraph
-      return (
-        <Text key={index} style={styles.paragraphText}>
-          {trimmedLine}
-        </Text>
-      );
-    });
-  };
+  // Check if we have any workflow actions to show
+  const hasWorkflowActions = needsApproval || needsUploadData || hasSampleData || 
+    hasTagsData || showContextQuestions || showAdvancedQuestions || 
+    showExperimentValidator || showExperimentProgressTracker;
 
   return (
     <View style={styles.container}>
+      {/* AI Avatar */}
+      <View style={styles.avatar}>
+        <Image source={TGLogo} style={styles.avatarImage} resizeMode="contain" />
+      </View>
+      
       <View style={styles.messageCard}>
         {/* Tool Calls Section */}
         {toolCalls.length > 0 && (
@@ -104,15 +100,86 @@ export default function AIMessage({ message, toolsUsed = [] }) {
 
         {/* Final Answer Section */}
         <View style={styles.finalAnswerSection}>
-          <View style={styles.sectionHeader}>
-            <MaterialCommunityIcons name="check-circle" size={18} color="#059669" />
-            <Text style={[styles.sectionTitle, { color: '#059669' }]}>
-              FINAL ANSWER
-            </Text>
-          </View>
+          {(!hasWorkflowActions) && (
+            <View style={styles.sectionHeader}>
+              <MaterialCommunityIcons name="check-circle" size={18} color="#059669" />
+              <Text style={[styles.sectionTitle, { color: '#059669' }]}>
+                FINAL ANSWER
+              </Text>
+            </View>
+          )}
 
-          {formatFinalAnswer(finalAnswer)}
+          {/* AI Response Text */}
+          {finalAnswer && (
+            <Text style={styles.answerText}>
+              {finalAnswer}
+            </Text>
+          )}
         </View>
+
+        {/* WORKFLOW ACTION SECTIONS */}
+        
+        {/* Approval Section - for module approval */}
+        {needsApproval && langState && (
+          <ApprovalSection approvalData={langState} messageId={message.id} />
+        )}
+
+        {/* Data Upload Section - for uploading training data */}
+        {needsUploadData && langState && (
+          <DataUploadSection uploadData={langState} messageId={message.id} />
+        )}
+
+        {/* Sample Data Section */}
+        {hasSampleData && message.sampleData && (
+          <SampleDataSection sampleData={message.sampleData} />
+        )}
+
+        {/* Tags Section - for data tagging */}
+        {hasTagsData && message.tagsData && (
+          <TagsSection
+            tagsData={message.tagsData}
+            messageId={message.id}
+            langgraphState={langState}
+          />
+        )}
+
+        {/* Context Questions Section */}
+        {showContextQuestions && langState?.context_questions && (
+          <ContextQuestionsSection
+            contextQuestions={langState.context_questions}
+            messageId={message.id}
+            langgraphState={langState}
+          />
+        )}
+
+        {/* Advanced Questions Section */}
+        {showAdvancedQuestions && langState?.advanced_questions && (
+          <AdvancedQuestionsSection
+            advancedQuestions={langState.advanced_questions}
+            messageId={message.id}
+            langgraphState={langState}
+          />
+        )}
+
+        {/* Experiment Validator/Executor Section */}
+        {showExperimentValidator && (
+          <ExperimentExecutorSection
+            messageId={message.id}
+            langgraphState={langState}
+          />
+        )}
+
+        {/* Experiment Progress Tracker */}
+        {showExperimentProgressTracker && experimentId && experimentTriggered && (
+          <ExperimentProgressTracker experimentId={experimentId} />
+        )}
+
+        {/* Streaming Indicator */}
+        {isStreaming && (
+          <View style={styles.streamingIndicator}>
+            <Text style={styles.streamingText}>AI is typing...</Text>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -121,21 +188,41 @@ export default function AIMessage({ message, toolsUsed = [] }) {
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
     marginBottom: 16,
     paddingHorizontal: 8,
+    gap: 8,
+  },
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#dbeafe',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#3b82f6',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  avatarImage: {
+    width: 20,
+    height: 20,
   },
   messageCard: {
     flex: 1,
-    maxWidth: '80%',
+    maxWidth: '85%',
     backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    borderRadius: 12,
+    borderRadius: 16,
+    borderTopLeftRadius: 4, // Tail effect pointing to avatar
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
     elevation: 2,
   },
   toolCallsSection: {
@@ -202,48 +289,22 @@ const styles = StyleSheet.create({
     fontWeight: '400',
   },
   finalAnswerSection: {
-    padding: 20,
+    padding: 16,
   },
-  listItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 8,
-  },
-  numberLabel: {
+  answerText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#1976d2',
-    marginRight: 12,
-    minWidth: 24,
-    textAlign: 'center',
-  },
-  bulletLabel: {
-    fontSize: 14,
-    color: '#000000',
-    marginRight: 12,
-    minWidth: 24,
-    textAlign: 'center',
-  },
-  listText: {
-    flex: 1,
-    fontSize: 14,
-    lineHeight: 22.4,
-    color: '#000000',
+    lineHeight: 22,
+    color: '#1F2937',
     fontWeight: '400',
   },
-  headerText: {
-    fontSize: 15.2,
-    fontWeight: '600',
-    color: '#000000',
-    marginBottom: 8,
-    marginTop: 16,
-    letterSpacing: 0.25,
+  streamingIndicator: {
+    padding: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
   },
-  paragraphText: {
-    fontSize: 14,
-    lineHeight: 22.4,
-    color: '#000000',
-    fontWeight: '400',
-    marginBottom: 8,
+  streamingText: {
+    color: '#9ca3af',
+    fontStyle: 'italic',
+    fontSize: 12,
   },
 });

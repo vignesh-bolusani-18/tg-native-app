@@ -34,9 +34,12 @@ const LandingInputSection = ({
     fetchDatasets();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Allow typing even if socket is not ready, but disable if waiting for AI
+  // Keep input enabled during workflow - only disable when waiting for AI response
+  // This allows users to interact during workflow execution
   const isEditorDisabled = isWaitingForAI;
   const hasText = inputValue.trim().length > 0;
+  
+  console.log('🎛️ [LandingInput] State:', { isWaitingForAI, isEditorDisabled, hasText });
 
   // Transform for suggestions (datasets and experiments)
   const completedExperiments = getCompletedExperiments();

@@ -1,6 +1,6 @@
 // D:\TG_REACT_NATIVE_MOBILE_APP\components\agent\actions\ApprovalSection.js
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 // Hooks
 import useAuth from "../../../hooks/useAuth";
@@ -99,22 +99,22 @@ const ApprovalSection = ({ approvalData, messageId }) => {
   const isApproved = approvalData?.next_step?.user === "approved";
 
   return (
-    <View className="mt-4 p-4 bg-white border border-gray-200 rounded-lg border-l-4 border-l-blue-500 shadow-sm">
+    <View style={styles.container}>
       {isApproved ? (
-        <View className="flex-row items-center space-x-2">
+        <View style={styles.approvedRow}>
           <MaterialCommunityIcons name="check-circle" size={20} color="#10b981" />
-          <Text className="text-sm font-semibold text-green-600">
+          <Text style={styles.approvedText}>
             Approved {modulesDict[approvalData?.determined_module] || "Module"}
           </Text>
         </View>
       ) : (
         <View>
-          <Text className="text-sm font-semibold text-gray-800 mb-2">
+          <Text style={styles.title}>
             Module Recommendation: {modulesDict[approvalData?.determined_module] || "Recommended"}
           </Text>
 
           {approvalData.reason && (
-            <Text className="text-xs text-gray-500 mb-4 leading-5">
+            <Text style={styles.reason}>
               {approvalData.reason}
             </Text>
           )}
@@ -122,17 +122,75 @@ const ApprovalSection = ({ approvalData, messageId }) => {
           <TouchableOpacity
             onPress={onApprove}
             disabled={creditScore <= 0}
-            className={`flex-row items-center justify-center py-2 px-4 rounded-md w-32 ${
-              creditScore <= 0 ? "bg-gray-300" : "bg-green-600"
-            }`}
+            style={[styles.button, creditScore <= 0 && styles.buttonDisabled]}
           >
             <MaterialCommunityIcons name="check" size={16} color="white" />
-            <Text className="text-white font-medium ml-2 text-xs">Approve</Text>
+            <Text style={styles.buttonText}>Approve</Text>
           </TouchableOpacity>
         </View>
       )}
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    marginTop: 16,
+    padding: 16,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#3b82f6',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  approvedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  approvedText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#10b981',
+    marginLeft: 8,
+  },
+  title: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1f2937',
+    marginBottom: 8,
+  },
+  reason: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  button: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    backgroundColor: '#16a34a',
+    width: 128,
+  },
+  buttonDisabled: {
+    backgroundColor: '#d1d5db',
+  },
+  buttonText: {
+    color: '#ffffff',
+    fontWeight: '500',
+    marginLeft: 8,
+    fontSize: 12,
+  },
+});
 
 export default ApprovalSection;

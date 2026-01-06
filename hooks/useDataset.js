@@ -1,12 +1,11 @@
 /**
  * useDataset Hook - Dataset Management
  * Fetches and manages available datasets for the current company
+ * Datasets are retrieved from experiments' metadata paths
  */
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
-import { apiConfig } from '../utils/apiConfig';
-import { getAccessToken } from '../utils/getAccessToken';
 
 export default function useDataset() {
   const [loading, setLoading] = useState(false);
@@ -17,78 +16,109 @@ export default function useDataset() {
 
   // Get company from auth slice
   const company = useSelector((state) => state.auth?.currentCompany || null);
+  const experiments_list = useSelector((state) => state.vibe?.experiments_list || []);
 
-  // Fetch all datasets for current company
-  const fetchDatasets = useCallback(async (force = false) => {
-    if (!company?.companyID) {
-      console.log('[useDataset] No company ID available');
+  // Extract datasets from experiments metadata
+  const extractDatasetsFromExperiments = useCallback((experimentsList) => {
+    if (!Array.isArray(experimentsList) || experimentsList.length === 0) {
       return [];
     }
 
-    // Prevent duplicate fetches
+    const datasetsMap = new Map();
+    
+    experimentsList.forEach((experiment) => {
+      // Check for datasets in experiment data
+      if (experiment.data) {
+        Object.keys(experiment.data).forEach((dataKey) => {
+          const dataEntry = experiment.data[dataKey];
+          if (dataEntry && dataEntry.dataset_info) {
+            const { datasetName, datasetTag, sourceName, metaDataPath } = dataEntry.dataset_info;
+            if (datasetName && !datasetsMap.has(datasetName)) {
+              datasetsMap.set(datasetName, {
+                name: datasetName,
+                datasetName,
+                tag: datasetTag || 'base',
+                source: sourceName || 'Unknown',
+                metadataPath: metaDataPath,
+                experimentId: experiment.experimentID || experiment.id,
+                sampleDataPath: dataEntry.sample_data_path,
+              });
+            }
+          }
+        });
+      }
+    });
+
+    return Array.from(datasetsMap.values());
+  }, []);
+
+  // Fetch all datasets for current company
+  // ⭐ FIX: Datasets are ONLY extracted from experiments, no separate API call
+  const fetchDatasets = useCallback(async (force = false) => {
+    console.log('🔍 [useDataset] fetchDatasets called, force:', force);
+    console.log('   Company:', company?.companyID);
+    console.log('   Experiments:', experiments_list?.length || 0);
+    console.log('   Current datasets:', datasets.length);
+    
+    // Already fetched and not forcing - return early
     if (!force && hasFetchedRef.current && datasets.length > 0) {
-      return datasets;
+      console.log('✅ [useDataset] Using cached datasets:', datasets.length);
+      return;
     }
 
+    if (!company?.companyID) {
+      console.log('⚠️ [useDataset] No company ID available');
+      return;
+    }
+
+    // Mark as fetched immediately to prevent duplicate calls
+    hasFetchedRef.current = true;
     setLoading(true);
     setError(null);
     
     try {
-      const accessToken = await getAccessToken();
+      // ⭐ CRITICAL: Extract datasets from experiments that have been loaded
+      // This matches tg-application - datasets come FROM experiments, not separate API
+      const extractedDatasets = extractDatasetsFromExperiments(experiments_list);
       
-      const response = await fetch(`${apiConfig.apiBaseURL}/getDatasetsList`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': accessToken ? `Bearer ${accessToken}` : '',
-        },
-        body: JSON.stringify({ companyID: company.companyID }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch datasets: ${response.status}`);
-      }
-
-      const data = await response.json();
+      console.log('📊 [useDataset] Datasets extracted from experiments:', extractedDatasets.length);
+      console.log('   Dataset names:', extractedDatasets.map(d => d.datasetName).join(', '));
       
-      if (data && Array.isArray(data.datasets)) {
-        setDatasets(data.datasets);
-        // Extract just the names for suggestions
-        const names = data.datasets.map(d => d.datasetName || d.name).filter(Boolean);
-        setDatasetsNameList(names);
-        hasFetchedRef.current = true;
-        setLoading(false);
-        return data.datasets;
-      } else if (Array.isArray(data)) {
-        setDatasets(data);
-        const names = data.map(d => d.datasetName || d.name || d).filter(Boolean);
-        setDatasetsNameList(names);
-        hasFetchedRef.current = true;
-        setLoading(false);
-        return data;
-      }
-      
+      setDatasets(extractedDatasets);
+      setDatasetsNameList(extractedDatasets.map(d => d.datasetName));
       setLoading(false);
-      return [];
+      console.log('✅ [useDataset] Datasets set successfully');
     } catch (err) {
-      console.error('[useDataset] Error fetching datasets:', err);
+      console.error('❌ [useDataset] Error:', err);
       setError(err.message);
+      setDatasets([]);
+      setDatasetsNameList([]);
       setLoading(false);
-      
-      // Return mock data for development/demo purposes
-      const mockDatasets = [
-        { id: '1', name: 'Titanic', datasetName: 'Titanic', path: 's3://datasets/titanic.csv' },
-        { id: '2', name: 'Sales Data', datasetName: 'Sales Data', path: 's3://datasets/sales.csv' },
-        { id: '3', name: 'Inventory', datasetName: 'Inventory', path: 's3://datasets/inventory.csv' },
-        { id: '4', name: 'Customer Data', datasetName: 'Customer Data', path: 's3://datasets/customers.csv' },
-        { id: '5', name: 'Product Catalog', datasetName: 'Product Catalog', path: 's3://datasets/products.csv' },
-      ];
-      setDatasets(mockDatasets);
-      setDatasetsNameList(mockDatasets.map(d => d.name));
-      hasFetchedRef.current = true;
-      return mockDatasets;
     }
-  }, [company?.companyID, datasets]);
+  }, [company?.companyID, experiments_list, extractDatasetsFromExperiments, datasets.length]);
+
+  // ⭐ FIX: Auto-extract datasets when experiments list changes
+  // Only update if experiments_list changes, not on every render
+  useEffect(() => {
+    console.log('🔄 [useDataset] Experiments changed, count:', experiments_list?.length || 0);
+    console.log('   Company:', company?.companyID);
+    
+    if (experiments_list && experiments_list.length > 0 && company?.companyID) {
+      const extractedDatasets = extractDatasetsFromExperiments(experiments_list);
+      console.log('📊 [useDataset] Extracted datasets:', extractedDatasets.length);
+      
+      if (extractedDatasets.length > 0) {
+        setDatasets(extractedDatasets);
+        setDatasetsNameList(extractedDatasets.map(d => d.datasetName));
+        hasFetchedRef.current = true; // Mark as fetched
+        console.log('✅ [useDataset] Datasets auto-extracted:', extractedDatasets.map(d => d.datasetName).join(', '));
+      } else {
+        console.warn('⚠️ [useDataset] No datasets found in experiments');
+      }
+    } else if (experiments_list?.length === 0) {
+      console.warn('⚠️ [useDataset] Experiments list is empty');
+    }
+  }, [experiments_list, company?.companyID, extractDatasetsFromExperiments]);
 
   // Get dataset by name
   const getDatasetByName = useCallback((name) => {

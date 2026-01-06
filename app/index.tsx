@@ -10,10 +10,34 @@ export default function Index() {
   const { isAuthenticated, currentCompany, userInfo } = useSelector((state: any) => state.auth);
   const [, setIsChecking] = useState(true);
   const hasRedirected = React.useRef(false);
+  const hasRestoredState = React.useRef(false); // ⭐ Prevent infinite restoration loop
   const retryCount = React.useRef(0);
   const MAX_RETRIES = 3;
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+
+  // ⭐ CRITICAL: Check if this is truly initial load or just app coming back from background
+  useEffect(() => {
+    const checkInitialLoad = async () => {
+      const hasCompletedAuth = await getItem('auth_completed');
+      if (hasCompletedAuth === 'true') {
+        console.log('✅ Auth already completed - skipping redirect');
+        hasRedirected.current = true;
+        setIsInitialLoad(false);
+        // User is already authenticated, just stay on current route
+        return;
+      }
+      setIsInitialLoad(true);
+    };
+    checkInitialLoad();
+  }, []);
 
   useEffect(() => {
+    // Skip if not initial load (coming back from background/file picker)
+    if (!isInitialLoad) {
+      console.log('⚠️ Not initial load - skipping auth check');
+      return;
+    }
+
     // Prevent multiple redirects
     if (hasRedirected.current) {
       return;
@@ -156,31 +180,119 @@ export default function Index() {
         
         console.log('✅ TOKEN VALID');
         
+        // ⭐ CRITICAL: If Redux state is empty, restore it from token + fetch companies
+        // Only run ONCE per session to prevent infinite loops
+        if ((!userInfo || !userInfo.email || !currentCompany) && !hasRestoredState.current) {
+          console.log('⚠️ Redux state incomplete - Restoring from token and storage...');
+          console.log('   Missing userInfo:', !userInfo || !userInfo.email);
+          console.log('   Missing currentCompany:', !currentCompany);
+          hasRestoredState.current = true; // Mark as restored to prevent re-runs
+          
+          try {
+            // Import Redux dispatch and actions
+            const { store } = await import('../redux/store');
+            const { setUserInfo, setIsAuthenticated, setIsLoggedIn, loadCompanies, setCurrentCompany } = await import('../redux/slices/authSlice');
+            
+            // Restore userInfo from token
+            const tokenParts = token.split('.');
+            if (tokenParts.length === 3) {
+              const payload = JSON.parse(atob(tokenParts[1]));
+              const restoredUserInfo = {
+                email: payload.email || payload.userEmail,
+                userID: payload.userID || payload.sub,
+                name: payload.name || payload.given_name || null,
+              };
+              
+              console.log('📦 Restoring userInfo from token:', restoredUserInfo.email);
+              store.dispatch(setUserInfo(restoredUserInfo));
+              store.dispatch(setIsAuthenticated(true));
+              store.dispatch(setIsLoggedIn(true));
+            }
+            
+            // Fetch and restore companies
+            console.log('🏢 Fetching companies from backend...');
+            const { getCompaniesList } = await import('../utils/getCompaniesList');
+            const { getRefreshToken } = await import('../utils/getRefreshToken');
+            
+            try {
+              const companiesResponse = await getCompaniesList();
+              let companies = companiesResponse?.companies || companiesResponse?.data?.companies || [];
+              
+              if (!Array.isArray(companies)) {
+                companies = [];
+              }
+              
+              console.log('✅ Companies fetched:', companies.length);
+              
+              // Sort by lastAccessed
+              const sortedCompanies = [...companies].sort((a, b) => {
+                const aLastAccessed = a.lastAccessed ?? 0;
+                const bLastAccessed = b.lastAccessed ?? 0;
+                return bLastAccessed - aLastAccessed;
+              });
+              
+              // Store in Redux
+              store.dispatch(loadCompanies(sortedCompanies));
+              
+              // Auto-select most recent company
+              if (sortedCompanies.length > 0) {
+                const mostRecent = sortedCompanies[0];
+                const companyId = mostRecent.id || mostRecent.companyID;
+                
+                console.log('📍 Auto-selecting company:', mostRecent.companyName || mostRecent.name);
+                
+                // Get company refresh token
+                try {
+                  await getRefreshToken(companyId);
+                  console.log('✅ Company refresh token obtained');
+                } catch (tokenErr) {
+                  console.warn('⚠️ Failed to get company refresh token:', tokenErr);
+                }
+                
+                // Set in Redux
+                store.dispatch(setCurrentCompany({
+                  ...mostRecent,
+                  id: companyId,
+                  companyName: mostRecent.companyName || mostRecent.name,
+                }));
+                
+                console.log('✅ Redux state restored successfully');
+              } else {
+                console.log('⚠️ No companies found - user will see workspace selector');
+              }
+            } catch (companyError) {
+              console.error('❌ Failed to fetch companies:', companyError);
+              store.dispatch(loadCompanies([]));
+            }
+          } catch (restoreError) {
+            console.error('❌ Failed to restore Redux state:', restoreError);
+          }
+        }
+        
         // Check if userInfo exists in Redux (set during login)
         if (userInfo && userInfo.email) {
           console.log('✅ UserInfo loaded:', userInfo.email);
           console.log('   UserID:', userInfo.userID || 'not set');
         } else {
-          console.log('⚠️ UserInfo not in Redux - may need to re-login');
+          console.log('⚠️ UserInfo not in Redux after restore attempt');
         }
         
-        // Check Redux state for company (more reliable than storage)
+        // Always redirect to /vibe (agent page)
+        // If no company, user will see workspace selector dropdown (matches web app)
         if (currentCompany && currentCompany.id) {
-          console.log('✅ Company selected in Redux - Redirecting to /vibe (Agent)');
+          console.log('✅ Company selected - Redirecting to /vibe (Agent)');
           console.log('   Company:', currentCompany.companyName || currentCompany.name);
-          hasRedirected.current = true;
-          router.replace('/vibe');
         } else if (refreshTokenCompany) {
           console.log('✅ Company token in storage - Redirecting to /vibe (Agent)');
-          hasRedirected.current = true;
-          router.replace('/vibe');
         } else {
-          // No company - redirect to agent page anyway (user will see workspace selector dropdown)
-          // This matches web app behavior - user goes to agent and can create workspace from dropdown
           console.log('⚠️ No company selected - Redirecting to /vibe (Agent will show workspace selector)');
-          hasRedirected.current = true;
-          router.replace('/vibe');
         }
+        
+        hasRedirected.current = true;
+        // ⭐ Mark auth as completed to prevent re-redirects on app focus
+        const { setItem } = await import('../utils/storage');
+        await setItem('auth_completed', 'true');
+        router.replace('/vibe');
         
         setIsChecking(false);
       } catch (error) {
@@ -197,7 +309,9 @@ export default function Index() {
     return () => {
       clearTimeout(timeoutId);
     };
-  }, [router, isAuthenticated, currentCompany, userInfo]);
+    // ⭐ CRITICAL: Depend on isInitialLoad to prevent running on app focus
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router, isInitialLoad]);
 
   return (
     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>

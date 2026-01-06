@@ -28,7 +28,7 @@ export default function ConversationSidebar({
             style={[styles.itemText, isSelected && styles.selectedItemText]} 
             numberOfLines={1}
           >
-            {item.title || "New Chat"}
+            {item.conversation_name || item.title || "New Chat"}
           </Text>
         </View>
         

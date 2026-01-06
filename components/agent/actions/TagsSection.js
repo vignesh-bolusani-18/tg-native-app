@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import {
     LayoutAnimation,
     Platform,
+    StyleSheet,
     Text,
     TouchableOpacity,
     UIManager,
@@ -22,12 +23,6 @@ if (
 const TagsSection = ({ tagsData, messageId, langgraphState }) => {
   // State for main section expansion
   const [isMainExpanded, setIsMainExpanded] = useState(true);
-
-  // State for collapsible sections (kept for future parity with web)
-  // const [expandedSections, setExpandedSections] = useState({
-  //   assignedTags: false,
-  //   edaSummary: false,
-  // });
 
   const { dataConfirmed } = useVibe();
 
@@ -58,26 +53,24 @@ const TagsSection = ({ tagsData, messageId, langgraphState }) => {
   };
 
   return (
-    <View className="mt-3 overflow-hidden rounded-xl bg-white border border-gray-200">
+    <View style={styles.container}>
       {/* Main Header - Always visible */}
       <TouchableOpacity
         activeOpacity={0.7}
         onPress={toggleMainSection}
-        className={`p-4 flex-row items-center justify-between bg-white ${
-          isMainExpanded ? "border-b border-gray-100" : ""
-        } border-l-4 border-l-emerald-500`}
+        style={[styles.header, isMainExpanded && styles.headerWithBorder]}
       >
-        <View className="flex-row items-center gap-2">
+        <View style={styles.headerLeft}>
           <MaterialIcons name="label" size={20} color="#10b981" />
           
-          <Text className="text-base font-semibold text-gray-700">
+          <Text style={styles.headerTitle}>
             {dataConfirmed ? "Data Confirmed" : "Data Tags Analysis"}
           </Text>
 
           {dataConfirmed && (
-            <View className="px-2 py-1 bg-emerald-50 border border-emerald-200 rounded-full flex-row items-center gap-1">
+            <View style={styles.confirmedBadge}>
               <MaterialIcons name="check" size={12} color="#10b981" />
-              <Text className="text-xs font-medium text-emerald-800">
+              <Text style={styles.confirmedText}>
                 Confirmed
               </Text>
             </View>
@@ -93,13 +86,7 @@ const TagsSection = ({ tagsData, messageId, langgraphState }) => {
 
       {/* Collapsible Content */}
       {isMainExpanded && (
-        <View className="p-4 bg-white">
-          {/* Note: The original Web code had commented out sections for 
-            Dataset Info, Tags Analysis, and EDA Summary. 
-            I have omitted them here to keep the file clean, 
-            but the structure allows you to add them back easily if needed.
-          */}
-
+        <View style={styles.content}>
           {/* Active Data Tagger Section */}
           <DataTaggerSection
             dataInfo={dataInfo}
@@ -111,5 +98,60 @@ const TagsSection = ({ tagsData, messageId, langgraphState }) => {
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    marginTop: 12,
+    overflow: 'hidden',
+    borderRadius: 12,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  header: {
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#ffffff',
+    borderLeftWidth: 4,
+    borderLeftColor: '#10b981',
+  },
+  headerWithBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+    marginLeft: 8,
+  },
+  confirmedBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: '#ecfdf5',
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  confirmedText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#065f46',
+  },
+  content: {
+    padding: 16,
+    backgroundColor: '#ffffff',
+  },
+});
 
 export default TagsSection;

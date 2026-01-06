@@ -66,7 +66,8 @@ const authSlice = createSlice({
       state.loading = action.payload;
     },
     loadCompanies(state, action) {
-      state.companies_list = action.payload;
+      // Ensure we always store an array
+      state.companies_list = Array.isArray(action.payload) ? action.payload : [];
     },
     loadPendingInvites(state, action) {
       state.pending_invite_list = action.payload;

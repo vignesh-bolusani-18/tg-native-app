@@ -72,40 +72,42 @@ const VibeGradientLayout = ({ children }) => {
   // Extract workflow progress information
   const getWorkflowProgress = () => {
     try {
+      // Early return if no current conversation
       if (!currentConversation || typeof currentConversation !== "object") {
         return null;
       }
 
-      const experimentState = currentConversation.experiment_execution_state;
-      if (!experimentState) {
+      // Safely access experiment_execution_state
+      const experimentState = currentConversation?.experiment_execution_state;
+      if (!experimentState || typeof experimentState !== 'object') {
         return null;
       }
 
-      let currentNode = experimentState.next_module;
-      const currentWorkflowName = experimentState.workflow_name;
+      const currentNode = experimentState?.next_module;
+      const currentWorkflowName = experimentState?.workflow_name;
 
+      // If no workflow info, return null
       if (!currentNode || !currentWorkflowName) {
         return null;
       }
 
-      // Use the new step info functions
-      const allSteps = getAllSteps();
-      const totalSteps = allSteps.length;
-      const currentStep = getStepNumber(currentNode);
+      // Use the step info functions safely
       const stepInfo = getStepInfo(currentNode);
       const currentStepName = stepInfo?.title || currentNode;
-      const determinedModule = experimentState.determined_module || null;
+      const determinedModule = experimentState?.determined_module || null;
+      const stepNumber = getStepNumber(currentNode);
+      const allSteps = getAllSteps();
 
       return {
-        currentStep,
-        totalSteps,
+        currentStep: stepNumber > 0 ? stepNumber : 1,
+        totalSteps: Array.isArray(allSteps) ? allSteps.length : 6,
         currentWorkflowName,
         currentStepName,
         currentNode,
         determinedModule,
       };
-    } catch (error) {
-      console.error("Error extracting workflow progress:", error);
+    } catch (_error) {
+      // Silently return null instead of logging error repeatedly
       return null;
     }
   };

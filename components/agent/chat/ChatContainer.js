@@ -24,8 +24,6 @@ const ChatContainer = () => {
     processingStepText,
     isWaitingForAI,
     currentConversationId,
-    currentConversation,
-    conversations,
   } = useVibe();
   
   // Debug logging - only log on significant state changes (commented out for production)
@@ -71,10 +69,44 @@ const ChatContainer = () => {
         // ListFooterComponent renders the "Thinking..." or Streaming text
         ListFooterComponent={() => (
           <View>
-            {/* 1. Typing Indicator when waiting for initial response */}
-            {isWaitingForAI && !isStreaming && (
-              <View style={{ marginBottom: 16, marginLeft: 0, paddingHorizontal: 8 }}>
-                <TypingIndicator isTyping={true} message={processingStepText || "Thinking..."} />
+            {/* 1. AI Loading Bubble when waiting for response */}
+            {isWaitingForAI && (
+              <View style={{ 
+                flexDirection: 'row', 
+                alignItems: 'flex-start', 
+                marginBottom: 16, 
+                marginTop: 8, 
+                paddingHorizontal: 8 
+              }}>
+                {/* TG Avatar */}
+                <View style={{ 
+                  width: 36, 
+                  height: 36, 
+                  borderRadius: 18, 
+                  backgroundColor: '#DBEAFE', 
+                  alignItems: 'center', 
+                  justifyContent: 'center', 
+                  marginRight: 10 
+                }}>
+                  <Image source={TGIcon} style={{ width: 18, height: 18 }} resizeMode="contain" />
+                </View>
+                {/* Loading Bubble */}
+                <View style={{ 
+                  flex: 1, 
+                  backgroundColor: '#F9FAFB', 
+                  padding: 14, 
+                  borderRadius: 12, 
+                  borderTopLeftRadius: 4,
+                  borderWidth: 1,
+                  borderColor: '#E5E7EB',
+                  shadowColor: '#000', 
+                  shadowOffset: { width: 0, height: 1 }, 
+                  shadowOpacity: 0.05, 
+                  shadowRadius: 2, 
+                  elevation: 1 
+                }}>
+                  <TypingIndicator isTyping={true} message={processingStepText || "Thinking..."} />
+                </View>
               </View>
             )}
 

@@ -12,7 +12,6 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 // Hooks & Logic
 import useAuth from "../../hooks/useAuth";
@@ -107,8 +106,8 @@ const ChatPage = () => {
   const [isNewChatMode, setIsNewChatMode] = useState(false);
   // const [isSidebarVisible, setIsSidebarVisible] = useState(false); // Removed local state
 
-  const { currentCompany, userInfo } = useAuth();
-  const { experiments_list } = useExperiment();
+  const { currentCompany } = useAuth();
+  const { experiments_list, fetchExperiments } = useExperiment();
   
   const {
     selectedAnalysisExperiment,
@@ -151,6 +150,31 @@ const ChatPage = () => {
   // We can show a different placeholder or allow typing but prompt login on send.
   
   const canStartChat = !isWaitingForAI; // Removed creditScore check as requested
+
+  // ⭐ FIX: Fetch experiments ONCE when company changes
+  // Don't include fetchExperiments in deps to prevent loops
+  useEffect(() => {
+    console.log('🔄 [ChatPage] Company changed, checking if experiments need fetch...');
+    console.log('   Company:', currentCompany?.companyID);
+    console.log('   Current experiments count:', experiments_list?.length || 0);
+    
+    if (currentCompany?.companyID && experiments_list.length === 0) {
+      console.log('🚀 [ChatPage] Fetching experiments for new company...');
+      fetchExperiments(false).then((exps) => {
+        console.log('✅ [ChatPage] Experiments fetched:', exps?.length || 0);
+        if (exps && exps.length > 0) {
+          console.log('   First experiment:', exps[0]?.experimentID || exps[0]?.id);
+        }
+      }).catch(err => {
+        console.error('❌ [ChatPage] Error fetching experiments:', err);
+      });
+    } else if (experiments_list.length > 0) {
+      console.log('✅ [ChatPage] Experiments already loaded:', experiments_list.length);
+    }
+    // ⭐ CRITICAL: Only depend on companyID - adding fetchExperiments or experiments_list causes infinite loops
+    // fetchExperiments is stable from useCallback, experiments_list.length would trigger on every change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentCompany?.companyID]); // ⭐ ONLY depend on companyID change
 
   // Initialize Conversation
   useEffect(() => {
@@ -346,7 +370,7 @@ const ChatPage = () => {
   })();
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: 'white' }} edges={['top', 'left', 'right']}>
+    <View style={{ flex: 1, backgroundColor: 'white' }}>
       <StatusBar style="dark" />
       
       {/* Company Header */}
@@ -500,7 +524,7 @@ const ChatPage = () => {
           )}
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 };
 

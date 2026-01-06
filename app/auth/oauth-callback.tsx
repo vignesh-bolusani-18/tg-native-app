@@ -13,7 +13,13 @@ import {
     setIsAuthenticated,
     setLoggedInUser,
     setUserInfo,
+    loadCompanies,
+    setCurrentCompany,
 } from "../../redux/slices/authSlice";
+import { getCompaniesList } from "../../utils/getCompaniesList";
+import { createCompany } from "../../utils/createCompany";
+import { getRefreshToken } from "../../utils/getRefreshToken";
+import { getUserById } from "../../utils/getUserById";
 
 const TGIcon = require("../../assets/images/icon.png");
 
@@ -91,10 +97,102 @@ export default function OAuthCallback() {
 
         console.log("✅ OAuth: Redux state updated");
 
+        // 🏢 FETCH AND AUTO-SELECT COMPANY
+        setStatus("Loading workspaces...");
+        console.log("\n🏢 FETCHING COMPANIES...");
+        
+        try {
+          const companiesResponse = await getCompaniesList();
+          let companies = companiesResponse?.companies || companiesResponse?.data?.companies || [];
+          
+          if (!Array.isArray(companies)) {
+            companies = [];
+          }
+          
+          console.log("✅ Companies fetched:", companies.length);
+          
+          // Auto-create default workspace if none exists
+          if (companies.length === 0) {
+            console.log("🏗️ NO COMPANIES - Auto-creating default workspace...");
+            
+            const emailPrefix = userPayload.email.split('@')[0];
+            const defaultWorkspaceName = emailPrefix.replace(/[^a-zA-Z0-9]/g, '') + 'Workspace';
+            const encodedName = encodeURIComponent(defaultWorkspaceName.trim().replace(/ /g, "\u200B"));
+            
+            const payload = {
+              companyName: encodedName,
+              userID: userPayload.userID,
+            };
+            
+            try {
+              // Get fresh token for company creation
+              let freshToken = accessToken;
+              if (refreshAuthToken) {
+                try {
+                  freshToken = await getUserById(refreshAuthToken);
+                } catch (_e) {
+                  console.warn("⚠️ Using access token for company creation");
+                }
+              }
+              
+              const createdCompany = await createCompany(payload, null);
+              if (createdCompany) {
+                console.log("✅ Default workspace created:", createdCompany);
+                companies.push(createdCompany);
+              }
+            } catch (createError: any) {
+              console.error("❌ Failed to auto-create workspace:", createError.message);
+              // Try to refetch in case some exist
+              const refetchedResponse = await getCompaniesList();
+              const refetchedCompanies = refetchedResponse?.companies || [];
+              if (refetchedCompanies.length > 0) {
+                companies.push(...refetchedCompanies);
+              }
+            }
+          }
+          
+          // Sort by lastAccessed
+          const sortedCompanies = [...companies].sort((a, b) => {
+            const aLast = a.lastAccessed ?? 0;
+            const bLast = b.lastAccessed ?? 0;
+            return bLast - aLast;
+          });
+          
+          // Store in Redux
+          dispatch(loadCompanies(sortedCompanies));
+          console.log("✅ Companies stored in Redux:", sortedCompanies.length);
+          
+          // Auto-select most recent company
+          if (sortedCompanies.length > 0) {
+            const mostRecent = sortedCompanies[0];
+            const companyId = mostRecent.id || mostRecent.companyID;
+            
+            console.log("📍 AUTO-SELECTING:", mostRecent.companyName || mostRecent.name);
+            
+            // Get company refresh token
+            try {
+              await getRefreshToken(companyId);
+            } catch (_e) {
+              console.warn("⚠️ No company refresh token");
+            }
+            
+            dispatch(setCurrentCompany({
+              ...mostRecent,
+              id: companyId,
+              companyName: mostRecent.companyName || mostRecent.name,
+            }));
+            
+            console.log("✅ Company auto-selected");
+          }
+        } catch (companyError: any) {
+          console.error("❌ Company fetch error:", companyError.message);
+          dispatch(loadCompanies([]));
+        }
+
         setStatus("Redirecting...");
         
-        // Navigate to home screen
-        router.replace("/(tabs)/home");
+        // Navigate to vibe/agent (not home)
+        router.replace("/vibe");
 
       } catch (error: any) {
         console.error("🔴 OAuth Callback Error:", error);

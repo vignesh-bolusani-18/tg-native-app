@@ -926,6 +926,7 @@ export const signOutUser = (reason = "logout") => async (dispatch) => {
     await removeItem("refresh_auth_token");
     await removeItem("refresh_token_company");
     await removeItem("companyID");
+    await removeItem("auth_completed");
     
     stopPeriodicSessionRefresh();
     await AsyncStorage.setItem("logout", Date.now().toString());
@@ -989,6 +990,7 @@ export const logoutUser = () => async (dispatch) => {
     await removeItem("refresh_auth_token");
     await removeItem("refresh_token_company");
     await removeItem("companyID");
+    await removeItem("auth_completed");
     
     // Clear AsyncStorage items
     await AsyncStorage.removeItem("otpEmail");

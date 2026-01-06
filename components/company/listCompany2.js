@@ -43,10 +43,14 @@ const ListCompany2 = () => {
       
       // DON'T pass token - let getCompaniesList fetch a fresh one to prevent token replay
       const data = await getCompaniesList();
-      setCompanies(data.companies || data || []);
-      console.log('✅ Companies loaded:', data.companies?.length || 0);
+      // Ensure we always set an array
+      const companiesArray = Array.isArray(data?.companies) ? data.companies : 
+                             Array.isArray(data) ? data : [];
+      setCompanies(companiesArray);
+      console.log('✅ Companies loaded:', companiesArray.length);
     } catch (error) {
       console.error('❌ Error fetching companies:', error);
+      setCompanies([]); // Ensure we always have an array on error
       Alert.alert('Error', 'Failed to load companies. ' + error.message);
     } finally {
       setLoading(false);
@@ -83,7 +87,7 @@ const ListCompany2 = () => {
 
   // Use companies from Redux if available, otherwise fetch
   useEffect(() => {
-    if (companies_list && companies_list.length > 0) {
+    if (Array.isArray(companies_list) && companies_list.length > 0) {
       console.log('📦 Using companies from Redux:', companies_list.length);
       setCompanies(companies_list);
     } else {
@@ -209,7 +213,7 @@ const ListCompany2 = () => {
 
       {/* Companies List */}
       <View style={styles.companiesList}>
-        {companies.length === 0 ? (
+        {!Array.isArray(companies) || companies.length === 0 ? (
           <Text style={styles.emptyText}>
             No companies found. Create one to get started!
           </Text>

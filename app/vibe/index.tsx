@@ -14,7 +14,7 @@ import { getItem } from '../../utils/storage';
 
 export default function VibeIndex() {
   const { currentConversationId, navigating } = useVibe();
-  const { isAuthenticated, currentCompany } = useAuth();
+  const { currentCompany } = useAuth();
   const router = useRouter();
   const [checking, setChecking] = React.useState(true);
   const hasRedirected = React.useRef(false);
@@ -89,7 +89,10 @@ export default function VibeIndex() {
     checkAuth();
     
     return () => clearTimeout(timeoutId);
-  }, [isAuthenticated, currentCompany, router]);
+    // ⭐ CRITICAL: Minimal dependencies to prevent infinite loops
+    // Router is needed for navigation, others cause re-renders
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router]);
 
   // Redirect to active conversation if one exists
   useEffect(() => {

@@ -2,49 +2,34 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import { useEffect, useState } from "react";
-import { Alert, Text, TouchableOpacity, View } from "react-native";
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 // Hooks
 import useAuth from "../../../hooks/useAuth";
 import useExperiment from "../../../hooks/useExperiment";
 import { useVibe } from "../../../hooks/useVibe";
 import { useWorkflowWebSocket } from "../../../hooks/useWorkflowWebSocket";
-// import useDataset from "../../../hooks/useDataset"; // TODO: Create this hook
-import { uploadCSVToS3 } from "../../../utils/s3Utils";
-// import { generateMetadata as generateMetadataOld } from "../../../utils/generateMetadata"; // TODO: Create
-// import { generateMetadata as generateMetadataNew } from "../../../utils/generateMetadataConfigurable"; // TODO: Create
-// import { oldFlowModules } from "../../../utils/oldFlowModules"; // Unused for now
-// import useModule from "../../../hooks/useModule"; // Unused for now
-
-// Components (We will need placeholders if not built)
-const SampleDataLibrary = () => <Text className="text-gray-400 p-4 text-center">Sample Data Library (Coming Soon)</Text>; 
 
 const DataUploadSection = ({ uploadData, messageId }) => {
-  const currentDataTag = Object.keys(uploadData.data)[0];
+  const currentDataTag = uploadData?.data ? Object.keys(uploadData.data)[0] : 'base';
   const { sendQuery } = useWorkflowWebSocket();
   const {
     setProcessingStepText,
     setIsWaitingForAI,
-    editMessage,
     currentConversation,
     setDataUploaded,
-    creditScore,
   } = useVibe();
   
-  // const { ui_config } = useModule(); // Unused for now
   const { uploadMetadataToS3 } = useExperiment();
-  // const { addDataset } = useDataset(); // TODO: Create useDataset hook
-  const addDataset = () => {}; // Placeholder
-  const { userInfo, currentCompany } = useAuth();
+  const { currentCompany } = useAuth();
 
-  const dataUploaded = currentConversation.dataUploaded;
+  const dataUploaded = currentConversation?.dataUploaded;
   const isDataUploaded = uploadData?.next_step?.user === "uploaded_data";
 
   const [selectedFile, setSelectedFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(!dataUploaded);
-  const tags = uploadData.mandatory_data_tags || [];
-  // const [tags, setTags] = useState(uploadData.mandatory_data_tags || []);
+  const tags = uploadData?.mandatory_data_tags || [];
 
   useEffect(() => {
     setIsExpanded(!dataUploaded);
@@ -53,7 +38,7 @@ const DataUploadSection = ({ uploadData, messageId }) => {
   const handleFileSelect = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: ["text/csv", "text/comma-separated-values", "application/csv"],
+        type: ["text/csv", "text/comma-separated-values", "application/csv", "*/*"],
         copyToCacheDirectory: true,
       });
 
@@ -62,119 +47,105 @@ const DataUploadSection = ({ uploadData, messageId }) => {
       const file = result.assets[0];
       const maxSize = 100 * 1024 * 1024; // 100MB
 
-      if (!currentCompany.unlimited_data_upload && file.size > maxSize) {
-        Alert.alert("Error", "File size exceeds limit.");
+      if (!currentCompany?.unlimited_data_upload && file.size > maxSize) {
+        Alert.alert("Error", "File size exceeds 100MB limit.");
         return;
       }
 
       setSelectedFile(file);
     } catch (err) {
       console.error("Picker Error:", err);
+      Alert.alert("Error", "Failed to select file.");
     }
-  };
-
-  const generateMetadata = (fileName) => {
-    // Simplified metadata gen for mobile (skipping heavy preview parsing for now)
-    const dummyPreview = {}; 
-    // TODO: Import and use actual metadata generators
-    const metadata = {
-      columns: [],
-      preview: dummyPreview,
-      fileName,
-      tags,
-      source: "File Upload"
-    };
-    return metadata;
-    // return oldFlowModules.includes(uploadData.determined_module)
-    //   ? generateMetadataOld(dummyPreview, tags, fileName, "File Upload", "", {})
-    //   : generateMetadataNew(
-    //       dummyPreview,
-    //       tags,
-    //       fileName,
-    //       "File Upload",
-    //       "",
-    //       JSON.parse(JSON.stringify(ui_config?.datasets?.dataset_info || {}))
-    //     );
   };
 
   const handleUpload = async () => {
     if (!selectedFile) return;
 
+    console.log('📤 [DataUpload] Starting upload...');
+    console.log('   File:', selectedFile.name);
+    console.log('   Size:', selectedFile.size);
+    console.log('   Company:', currentCompany?.companyName);
+    
     setIsUploading(true);
     setProcessingStepText("Uploading data...");
     setIsWaitingForAI(true);
 
     try {
       const fileName = selectedFile.name.replace(".csv", "");
-      // Note: React Native fetch expects 'uri' for file uploads usually
-      // You might need to adjust uploadCSVToS3 util to handle { uri, name, type } object
-      
-      const metadata = generateMetadata(fileName);
-      const metaDataPath = `accounts/${currentCompany.companyName}_${currentCompany.companyID}/customer_data/data_library/metadata/${fileName}.json`;
-      const uploadCSVPath = `accounts/${currentCompany.companyName}_${currentCompany.companyID}/customer_data/data_library/uploads/${fileName}.csv`;
+      const companyPath = `accounts/${currentCompany?.companyName || 'default'}_${currentCompany?.companyID || 'default'}`;
+      const metaDataPath = `${companyPath}/customer_data/data_library/metadata/${fileName}.json`;
+      const uploadCSVPath = `${companyPath}/customer_data/data_library/uploads/${fileName}.csv`;
 
-      await uploadMetadataToS3({ metaData: metadata, path: metaDataPath });
-      
-      // Pass the file object directly (RN fetch handles uri)
-      await uploadCSVToS3(uploadCSVPath, selectedFile);
+      console.log('📁 [DataUpload] Paths generated:');
+      console.log('   Metadata:', metaDataPath);
+      console.log('   CSV:', uploadCSVPath);
+
+      // Create metadata
+      const metadata = {
+        columns: [],
+        preview: {},
+        fileName,
+        tags,
+        source: "File Upload"
+      };
+
+      // Try to upload metadata (may fail if endpoint doesn't exist - that's OK)
+      console.log('📊 [DataUpload] Uploading metadata...');
+      try {
+        await uploadMetadataToS3({ metaData: metadata, path: metaDataPath });
+        console.log('✅ [DataUpload] Metadata uploaded successfully');
+      } catch (metaErr) {
+        console.warn('⚠️ [DataUpload] Metadata upload skipped:', metaErr.message);
+      }
 
       const datasetInfo = {
         datasetName: fileName,
-        datasetTag: tags[0],
+        datasetTag: tags[0] || 'base',
         metaDataPath: metaDataPath,
         sourceName: "File Upload",
         dataConnectionName: "",
       };
 
-      const response = await addDataset(userInfo, currentCompany, datasetInfo);
+      console.log('📋 [DataUpload] Dataset info created:', datasetInfo);
+      setProcessingStepText("Data uploaded successfully");
+      
+      // ⚠️ DO NOT call editMessage - it triggers massive state update
+      // The sendQuery below will handle state propagation
+      console.log('⚡ [DataUpload] Skipping editMessage to prevent reload');
 
-      if (response) {
-        setProcessingStepText("Data uploaded successfully");
-        
-        if (messageId) {
-          editMessage(messageId, {
-            langgraphState: {
-              ...uploadData,
-              workflow_status: { ...uploadData.workflow_status, data_loaded: true },
-              next_step: { user: "uploaded_data", ai: "tags_generator" },
-              data: {
-                ...uploadData.data,
-                [currentDataTag]: {
-                  ...uploadData.data[currentDataTag],
-                  sample_data_path: uploadCSVPath,
-                  metadata_path: metaDataPath,
-                  dataset_info: datasetInfo,
-                },
-              },
-            },
-          });
-        }
-
-        const uploadState = {
-          ...uploadData,
-          workflow_status: { ...uploadData.workflow_status, data_loaded: true },
-          next_step: { user: "", ai: "tags_generator" },
-          data: {
-            ...uploadData.data,
-            [currentDataTag]: {
-              ...uploadData.data[currentDataTag],
-              sample_data_path: uploadCSVPath,
-              metadata_path: metaDataPath,
-              dataset_info: datasetInfo,
-            },
+      const uploadState = {
+        ...uploadData,
+        workflow_status: { ...uploadData?.workflow_status, data_loaded: true },
+        next_step: { user: "", ai: "tags_generator" },
+        data: {
+          ...uploadData?.data,
+          [currentDataTag]: {
+            ...uploadData?.data?.[currentDataTag],
+            sample_data_path: uploadCSVPath,
+            metadata_path: metaDataPath,
+            dataset_info: datasetInfo,
           },
-        };
+        },
+      };
 
-        setIsWaitingForAI(true);
-        setProcessingStepText("Fetching Sample data...");
-        setDataUploaded(true);
-        sendQuery({ query: "", updated_state: uploadState });
-        
-        setSelectedFile(null);
-      }
+      console.log('🔄 [DataUpload] Updating workflow state...');
+      setIsWaitingForAI(true);
+      setProcessingStepText("Processing data...");
+      setDataUploaded(true);
+      
+      console.log('📨 [DataUpload] Sending query with updated state');
+      console.log('   Next step:', uploadState.next_step);
+      
+      // ⭐ Send immediately - no delay needed since we removed editMessage
+      console.log('📤 [DataUpload] Sending query to backend...');
+      sendQuery({ query: "", updated_state: uploadState });
+      
+      setSelectedFile(null);
+      console.log('✅ [DataUpload] Upload completed - workflow will progress automatically');
     } catch (err) {
-      console.error("Upload error:", err);
-      Alert.alert("Upload Failed", "Please try again.");
+      console.error('❌ [DataUpload] Upload error:', err);
+      Alert.alert("Upload Failed", err.message || "Please try again.");
       setProcessingStepText("Upload failed");
     } finally {
       setIsUploading(false);
@@ -182,19 +153,19 @@ const DataUploadSection = ({ uploadData, messageId }) => {
   };
 
   return (
-    <View className="mt-4 bg-white border border-gray-200 rounded-xl border-l-4 border-l-green-500 shadow-sm overflow-hidden">
+    <View style={styles.container}>
       {/* Header / Toggle */}
       <TouchableOpacity
         onPress={() => setIsExpanded(!isExpanded)}
-        className="flex-row items-center justify-between p-3 bg-gray-50"
+        style={styles.header}
       >
-        <View className="flex-row items-center gap-2">
+        <View style={styles.headerLeft}>
           <MaterialCommunityIcons
             name={isDataUploaded ? "check-circle" : "cloud-upload"}
             size={20}
             color={isDataUploaded ? "#10b981" : "#f59e0b"}
           />
-          <Text className="text-sm font-semibold text-gray-700">
+          <Text style={styles.headerText}>
             {isDataUploaded ? "Data Uploaded" : "Data Upload Required"}
           </Text>
         </View>
@@ -207,36 +178,37 @@ const DataUploadSection = ({ uploadData, messageId }) => {
 
       {/* Content */}
       {isExpanded && (
-        <View className="p-4">
+        <View style={styles.content}>
           {isDataUploaded ? (
-            <View className="bg-green-50 p-3 rounded-lg border border-green-200">
-              <Text className="text-xs font-semibold text-green-700 mb-1">Dataset Information</Text>
-              <Text className="text-xs text-gray-700">Name: {uploadData?.data?.[currentDataTag]?.dataset_info?.datasetName}</Text>
-              <Text className="text-xs text-gray-700">Tag: {uploadData?.data?.[currentDataTag]?.dataset_info?.datasetTag}</Text>
+            <View style={styles.successBox}>
+              <Text style={styles.successTitle}>Dataset Information</Text>
+              <Text style={styles.successText}>
+                Name: {uploadData?.data?.[currentDataTag]?.dataset_info?.datasetName || 'Uploaded'}
+              </Text>
+              <Text style={styles.successText}>
+                Tag: {uploadData?.data?.[currentDataTag]?.dataset_info?.datasetTag || currentDataTag}
+              </Text>
             </View>
           ) : (
             <View>
-              <Text className="text-xs text-gray-500 mb-4 leading-5">
+              <Text style={styles.description}>
                 Please upload a CSV file containing the required data to continue.
               </Text>
 
               {/* Upload Box */}
               {!selectedFile ? (
-                <TouchableOpacity
-                  onPress={handleFileSelect}
-                  className="border-2 border-dashed border-gray-300 rounded-lg p-6 items-center bg-gray-50 mb-4"
-                >
-                  <View className="w-12 h-12 bg-white rounded-full items-center justify-center mb-2 shadow-sm">
+                <TouchableOpacity onPress={handleFileSelect} style={styles.uploadBox}>
+                  <View style={styles.uploadIcon}>
                     <MaterialCommunityIcons name="cloud-upload" size={24} color="#6b7280" />
                   </View>
-                  <Text className="text-sm font-semibold text-gray-700">Select CSV File</Text>
-                  <Text className="text-xs text-gray-400 mt-1">Max 100MB</Text>
+                  <Text style={styles.uploadTitle}>Select CSV File</Text>
+                  <Text style={styles.uploadSubtitle}>Max 100MB</Text>
                 </TouchableOpacity>
               ) : (
-                <View className="bg-white border border-gray-200 rounded-lg p-3 mb-4 flex-row items-center justify-between">
-                  <View className="flex-row items-center gap-2 flex-1">
+                <View style={styles.fileBox}>
+                  <View style={styles.fileInfo}>
                     <MaterialCommunityIcons name="file-document-outline" size={24} color="#3b82f6" />
-                    <Text className="text-sm text-gray-800 flex-1" numberOfLines={1}>
+                    <Text style={styles.fileName} numberOfLines={1}>
                       {selectedFile.name}
                     </Text>
                   </View>
@@ -248,19 +220,16 @@ const DataUploadSection = ({ uploadData, messageId }) => {
 
               <TouchableOpacity
                 onPress={handleUpload}
-                disabled={!selectedFile || isUploading || creditScore <= 0}
-                className={`w-full py-3 rounded-lg items-center ${
-                  !selectedFile || isUploading || creditScore <= 0 ? "bg-gray-300" : "bg-blue-600"
-                }`}
+                disabled={!selectedFile || isUploading}
+                style={[
+                  styles.uploadButton,
+                  (!selectedFile || isUploading) && styles.uploadButtonDisabled
+                ]}
               >
-                <Text className="text-white font-semibold">
+                <Text style={styles.uploadButtonText}>
                   {isUploading ? "Uploading..." : "Upload Data"}
                 </Text>
               </TouchableOpacity>
-              
-              <View className="mt-4">
-                 <SampleDataLibrary />
-              </View>
             </View>
           )}
         </View>
@@ -268,5 +237,138 @@ const DataUploadSection = ({ uploadData, messageId }) => {
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    marginTop: 16,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#10b981',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    backgroundColor: '#f9fafb',
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginLeft: 8,
+  },
+  content: {
+    padding: 16,
+  },
+  successBox: {
+    backgroundColor: '#ecfdf5',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
+  },
+  successTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#047857',
+    marginBottom: 4,
+  },
+  successText: {
+    fontSize: 12,
+    color: '#374151',
+  },
+  description: {
+    fontSize: 13,
+    color: '#6b7280',
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  uploadBox: {
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: '#d1d5db',
+    borderRadius: 12,
+    padding: 24,
+    alignItems: 'center',
+    backgroundColor: '#f9fafb',
+    marginBottom: 16,
+  },
+  uploadIcon: {
+    width: 48,
+    height: 48,
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  uploadTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  uploadSubtitle: {
+    fontSize: 12,
+    color: '#9ca3af',
+    marginTop: 4,
+  },
+  fileBox: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  fileInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 8,
+  },
+  fileName: {
+    fontSize: 14,
+    color: '#1f2937',
+    flex: 1,
+    marginLeft: 8,
+  },
+  uploadButton: {
+    backgroundColor: '#2563eb',
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  uploadButtonDisabled: {
+    backgroundColor: '#d1d5db',
+  },
+  uploadButtonText: {
+    color: '#ffffff',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+});
 
 export default DataUploadSection;

@@ -27,40 +27,56 @@ export default function useExperiment() {
 
   const mandatoryDatasetTags = ['sales', 'inventory'];
 
-  // Fetch all experiments for current company
+  // ⭐ FIX: Fetch all experiments for current company with improved caching
   const fetchExperiments = useCallback(async (force = false) => {
+    console.log('🔍 [useExperiment] fetchExperiments called');
+    console.log('   Company:', company?.companyID);
+    console.log('   Force:', force);
+    console.log('   HasFetched:', hasFetchedRef.current);
+    console.log('   Cached count:', experiments_list.length);
+    
     if (!company?.companyID) {
-      console.log('[useExperiment] No company ID available');
+      console.log('⚠️ [useExperiment] No company ID available');
       return [];
     }
 
-    // Prevent duplicate fetches
+    // ⭐ CRITICAL: Prevent duplicate fetches unless forced
     if (!force && hasFetchedRef.current && experiments_list.length > 0) {
+      console.log('✅ [useExperiment] Using cached experiments:', experiments_list.length);
       return experiments_list;
     }
 
+    console.log('🚀 [useExperiment] Fetching experiments from backend...');
+    console.log('   Company ID:', company.companyID);
     setLoading(true);
     setError(null);
     
     try {
       const response = await getAllExperiments(company.companyID);
+      console.log('📦 [useExperiment] Response received:', response ? 'yes' : 'no');
       
       if (response && response.experiments) {
+        console.log('✅ [useExperiment] Experiments found:', response.experiments.length);
+        console.log('   Experiment IDs:', response.experiments.map(e => e.experimentID || e.id).join(', '));
         dispatch(setExperimentsList(response.experiments));
         hasFetchedRef.current = true;
         setLoading(false);
         return response.experiments;
       } else if (Array.isArray(response)) {
+        console.log('✅ [useExperiment] Experiments array:', response.length);
         dispatch(setExperimentsList(response));
         hasFetchedRef.current = true;
         setLoading(false);
         return response;
       }
       
+      console.warn('⚠️ [useExperiment] No experiments in response');
+      dispatch(setExperimentsList([]));
       setLoading(false);
       return [];
     } catch (err) {
-      console.error('[useExperiment] Error fetching experiments:', err);
+      console.error('❌ [useExperiment] Error fetching experiments:', err);
+      console.error('   Error details:', err.message);
       setError(err.message);
       setLoading(false);
       return [];
@@ -161,6 +177,47 @@ export default function useExperiment() {
     dispatch(clearSelectedAnalysisExperiment());
   }, [dispatch]);
 
+  // Upload metadata to S3 - used by DataUploadSection
+  const uploadMetadataToS3 = useCallback(async ({ metaData, path }) => {
+    try {
+      console.log('[useExperiment] Uploading metadata to S3:', path);
+      // For now, we'll use a simple fetch to the backend
+      // The backend should handle the actual S3 upload
+      const { apiConfig } = await import('../utils/apiConfig');
+      const { getItem } = await import('../utils/storage');
+      const { getAccessToken } = await import('../utils/getAccessToken');
+      
+      const refreshToken = await getItem('refresh_token_company') || await getItem('refresh_token');
+      let accessToken = null;
+      if (refreshToken) {
+        try {
+          accessToken = await getAccessToken(refreshToken);
+        } catch (e) {
+          console.warn('[useExperiment] Could not get access token:', e.message);
+        }
+      }
+
+      const response = await fetch(`${apiConfig.apiBaseURL}/upload-metadata`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiConfig.apiKey || '',
+          ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify({ metaData, path }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to upload metadata: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (err) {
+      console.error('[useExperiment] Error uploading metadata:', err);
+      throw err;
+    }
+  }, []);
+
   return {
     // State
     currentExperiment,
@@ -181,5 +238,6 @@ export default function useExperiment() {
     updateExperiment,
     deleteExperiment,
     discardExperiment,
+    uploadMetadataToS3,
   };
 }

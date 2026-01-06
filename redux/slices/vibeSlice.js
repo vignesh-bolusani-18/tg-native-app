@@ -157,6 +157,16 @@ const vibeSlice = createSlice({
             
             conversation.title = newTitle;
             
+            // ✅ NEW: Also update conversation_list for sidebar
+            if (state.conversation_list) {
+              state.conversation_list = state.conversation_list.map(conv => {
+                if (conv.conversationID === conversationId) {
+                  return { ...conv, conversation_name: newTitle, title: newTitle };
+                }
+                return conv;
+              });
+            }
+            
             // ✅ NEW: Set a flag to trigger backend rename
             conversation.needsRename = true;
             conversation.pendingTitle = newTitle;
@@ -293,6 +303,17 @@ const vibeSlice = createSlice({
     updateLangGraphState: (state, action) => {
       const { langgraph_state, conversation_id } = action.payload;
       
+      // ⭐ OPTIMIZATION: Check if state actually changed to prevent unnecessary updates
+      const targetConversationId = conversation_id || state.currentConversationId;
+      const currentState = state.conversations?.[targetConversationId]?.langgraphState;
+      const currentStateJSON = JSON.stringify(currentState);
+      const newStateJSON = JSON.stringify(langgraph_state);
+      
+      if (currentStateJSON === newStateJSON) {
+        console.log('⚡ [updateLangGraphState] State unchanged - skipping update');
+        return; // Early return prevents re-render
+      }
+      
       console.log('\n' + '🔴'.repeat(30));
       console.log('🔴 [updateLangGraphState] REDUCER CALLED');
       console.log('🔴'.repeat(30));
@@ -307,8 +328,7 @@ const vibeSlice = createSlice({
         console.log("[updateLangGraphState] Created conversations object");
       }
       
-      // Use conversation_id from payload OR current conversation
-      const targetConversationId = conversation_id || state.currentConversationId;
+      // Use targetConversationId already defined above
       
       // Store conversation_id if provided (from first response)
       if (conversation_id && conversation_id !== state.currentConversationId) {
@@ -520,10 +540,22 @@ const vibeSlice = createSlice({
               conversation.messages = [];
               console.log("🔴 [updateLangGraphState] Created messages array");
             }
-            conversation.messages.push({
-              ...aiMessage,
-              conversationIndex: conversation.messages.length,
-            });
+            
+            // ⭐ OPTIMIZATION: Prevent duplicate messages
+            const lastMessage = conversation.messages[conversation.messages.length - 1];
+            const isDuplicate = lastMessage && 
+              lastMessage.type === 'ai' && 
+              lastMessage.nodeName === finalStateName &&
+              Math.abs(lastMessage.id - aiMessage.id) < 1000; // Within 1 second
+            
+            if (!isDuplicate) {
+              conversation.messages.push({
+                ...aiMessage,
+                conversationIndex: conversation.messages.length,
+              });
+            } else {
+              console.log("⚡ [updateLangGraphState] Duplicate message detected - skipping");
+            }
             console.log("🔴 [updateLangGraphState] ✅ MESSAGE PUSHED! Messages after:", conversation.messages.length);
 
             // Update conversation metadata
@@ -908,6 +940,25 @@ const vibeSlice = createSlice({
       state.currentConversationId = conversationId;
       state.conversations[state.currentConversationId].hasConversation = true;
       state.conversations[state.currentConversationId].error = null;
+      
+      // ADD to conversation_list for sidebar display
+      const conversationListEntry = {
+        conversationID: conversationId,
+        conversation_name: generatedTitle,
+        title: generatedTitle,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        messageCount: 0,
+        workflowName: workflowName || "default_workflow",
+      };
+      // Check if not already in list (avoid duplicates)
+      const existsInList = state.conversation_list?.find(c => c.conversationID === conversationId);
+      if (!existsInList) {
+        if (!state.conversation_list) {
+          state.conversation_list = [];
+        }
+        state.conversation_list.unshift(conversationListEntry);
+      }
     },
     switchConversation: (state, action) => {
       if (!state.conversations) {
