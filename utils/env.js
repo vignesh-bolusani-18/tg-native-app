@@ -1,0 +1,37 @@
+/**
+ * Environment Variables Configuration
+ * Centralizes access to environment variables for Expo/React Native
+ * Uses explicit EXPO_PUBLIC_ variables with fallback to REACT_APP_ for web compatibility
+ */
+
+export const ENV = {
+  // AWS Configuration
+  AWS_REGION: process.env.EXPO_PUBLIC_AWS_REGION || process.env.REACT_APP_AWS_REGION,
+  AWS_BUCKET_NAME: process.env.EXPO_PUBLIC_AWS_BUCKET_NAME || process.env.REACT_APP_AWS_BUCKET_NAME,
+  AWS_ACCESS_KEY_ID: process.env.EXPO_PUBLIC_AWS_ACCESS_KEY_ID || process.env.REACT_APP_AWS_ACCESS_KEY_ID,
+  AWS_SECRET_ACCESS_KEY: process.env.EXPO_PUBLIC_AWS_SECRET_ACCESS_KEY || process.env.REACT_APP_AWS_SECRET_ACCESS_KEY,
+  COGNITO_IDENTITY_POOL_ID: process.env.EXPO_PUBLIC_COGNITO_IDENTITY_POOL_ID || process.env.REACT_APP_COGNITO_IDENTITY_POOL_ID,
+  
+  // User Pools
+  USER_POOL_ID: process.env.EXPO_PUBLIC_USER_POOL_ID || process.env.REACT_APP_USER_POOL_ID || process.env.EXPO_PUBLIC_COGNITO_USER_POOL_ID || process.env.REACT_APP_COGNITO_USER_POOL_ID,
+  USER_POOL_WEB_CLIENT_ID: process.env.EXPO_PUBLIC_USER_POOL_WEB_CLIENT_ID || process.env.REACT_APP_USER_POOL_WEB_CLIENT_ID || process.env.EXPO_PUBLIC_COGNITO_USER_POOL_WEB_CLIENT_ID || process.env.REACT_APP_COGNITO_USER_POOL_WEB_CLIENT_ID,
+  USER_POOL_ID_1: process.env.EXPO_PUBLIC_USER_POOL_ID_1 || process.env.REACT_APP_USER_POOL_ID_1,
+  USER_POOL_WEB_CLIENT_ID_1: process.env.EXPO_PUBLIC_USER_POOL_WEB_CLIENT_ID_1 || process.env.REACT_APP_USER_POOL_WEB_CLIENT_ID_1,
+  
+  // API Configuration
+  API_BASE_URL: process.env.EXPO_PUBLIC_API_BASE_URL || process.env.REACT_APP_API_BASE_URL,
+  API_KEY: process.env.EXPO_PUBLIC_API_KEY || process.env.REACT_APP_API_KEY,
+  IDENTITY_GATEWAY_URL: process.env.EXPO_PUBLIC_IDENTITY_GATEWAY_URL || process.env.REACT_APP_IDENTITY_GATEWAY_URL,
+  VIBE_BASE_URL: process.env.EXPO_PUBLIC_VIBE_BASE_URL || process.env.REACT_APP_VIBE_BASE_URL,
+  ENV: process.env.EXPO_PUBLIC_ENV || process.env.REACT_APP_ENV,
+  
+  // Task Manager
+  TASK_MANAGER_API_BASE_URL: process.env.EXPO_PUBLIC_TASK_MANAGER_API_BASE_URL || process.env.REACT_APP_TASK_MANAGER_API_BASE_URL,
+  TASK_MANAGER_API_KEY: process.env.EXPO_PUBLIC_TASK_MANAGER_API_KEY || process.env.REACT_APP_TASK_MANAGER_API_KEY,
+  
+  // Query Engine
+  QUERY_ENGINE_API_BASE_URL: process.env.EXPO_PUBLIC_QUERY_ENGINE_API_BASE_URL || process.env.REACT_APP_QUERY_ENGINE_API_BASE_URL,
+  QUERY_ENGINE_API_KEY: process.env.EXPO_PUBLIC_QUERY_ENGINE_API_KEY || process.env.REACT_APP_QUERY_ENGINE_API_KEY,
+};
+
+export default ENV;

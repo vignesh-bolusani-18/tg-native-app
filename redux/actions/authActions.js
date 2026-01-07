@@ -960,37 +960,55 @@ export const getAuthToken = async () => {
   console.log("📊 refresh_auth_token:", !!accessToken);
   console.log("📊 token (main):", !!(await getSecureItem("token")));
 
+  // ⭐ FIXED: Try each token in order, falling through on failure
+  // Priority: refresh_token_company > refresh_token > refresh_auth_token
+  
+  // 1. Try company-specific token first (preferred for API calls)
   if (refreshCompanyToken) {
     try {
-      console.log("✅ Using refresh_token_company");
+      console.log("✅ Trying refresh_token_company...");
       const authToken = await getUserById(refreshCompanyToken);
-      return authToken;
-    } catch (error) {
-      console.error("❌ Error with refresh_token_company:", error.message);
-      const errorMessage = error.message || "";
-      if (errorMessage.includes("401") || errorMessage.includes("405")) {
-        console.log("Session expired. Need to re-login.");
+      if (authToken) {
+        console.log("✅ Successfully got auth token from refresh_token_company");
+        return authToken;
       }
+    } catch (error) {
+      console.warn("⚠️ refresh_token_company failed:", error.message);
+      // Fall through to try next token
     }
-  } else if (refreshToken) {
+  }
+  
+  // 2. Try general refresh token
+  if (refreshToken) {
     try {
-      console.log("✅ Using refresh_token");
+      console.log("✅ Trying refresh_token...");
       const authToken = await getUserById(refreshToken);
-      return authToken;
+      if (authToken) {
+        console.log("✅ Successfully got auth token from refresh_token");
+        return authToken;
+      }
     } catch (error) {
-      console.error("❌ Error with refresh_token:", error.message);
+      console.warn("⚠️ refresh_token failed:", error.message);
+      // Fall through to try next token
     }
-  } else if (accessToken) {
+  }
+  
+  // 3. Try auth token as last resort
+  if (accessToken) {
     try {
-      console.log("✅ Using refresh_auth_token");
+      console.log("✅ Trying refresh_auth_token...");
       const authToken = await getUserById(accessToken);
-      return authToken;
+      if (authToken) {
+        console.log("✅ Successfully got auth token from refresh_auth_token");
+        return authToken;
+      }
     } catch (error) {
-      console.error("❌ Error with refresh_auth_token:", error.message);
+      console.warn("⚠️ refresh_auth_token failed:", error.message);
     }
   }
 
   console.error("❌ No tokens available or all tokens failed!");
+  console.error("   This will cause API calls to fail. User may need to re-login.");
   return null;
 };
 

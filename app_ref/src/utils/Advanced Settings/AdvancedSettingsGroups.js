@@ -1,0 +1,428 @@
+import { mlAdvancedSettingsFields as MLAdvancedSettingsFields } from "./AdvancedSettingsFieldNew";
+
+export const mlAdvancedSettingsGroups = (
+  dimensionOptions,
+  modelsArray,
+  featuresArray,
+  clustersArray,
+  numericArray,
+  driverColumns,
+  kBestCandidatesMaxRange,
+  kBestCandidatesMinRange,
+  candidatesMaxRange,
+  candidatesMinRange,
+  percentageMaxRange,
+  percentageMinRange,
+  taggedColumns,
+  ts_id_columns,
+  config
+) => {
+  const mlAdvancedSettingsFields = MLAdvancedSettingsFields(
+    dimensionOptions,
+    modelsArray,
+    featuresArray,
+    clustersArray,
+    numericArray,
+    driverColumns,
+    kBestCandidatesMaxRange,
+    kBestCandidatesMinRange,
+    candidatesMaxRange,
+    candidatesMinRange,
+    percentageMaxRange,
+    percentageMinRange,
+    taggedColumns,
+    ts_id_columns,
+    config
+  );
+
+  return {
+    MLAS: {
+      title: "Model Settings",
+      description:
+        "Advanced model parameters like model selection and feature selection",
+      btnTitle: "Confirm",
+      isArray: false,
+      isHyperParam: false,
+      features: [
+        mlAdvancedSettingsFields.cluster_abc_xyz,
+        mlAdvancedSettingsFields.time_seasonality,
+        mlAdvancedSettingsFields.time_to_event,
+        mlAdvancedSettingsFields.clusterA,
+        mlAdvancedSettingsFields.exclude_granular_forecast,
+        mlAdvancedSettingsFields.groups_selection,
+        mlAdvancedSettingsFields.models_selection,
+        mlAdvancedSettingsFields.train_metrics_weight,
+        mlAdvancedSettingsFields.use_candidate_weight,
+        mlAdvancedSettingsFields.include_train_metrics,
+        mlAdvancedSettingsFields.n_candidates,
+        mlAdvancedSettingsFields.k_best_candidates,
+        mlAdvancedSettingsFields.enrichment_percentage,
+        mlAdvancedSettingsFields.multiprocessing_threshold,
+        //mlAdvancedSettingsFields.rl_agents,
+        // mlAdvancedSettingsFields.need_new_product_forecasting,
+        // mlAdvancedSettingsFields.new_product_days_cutoff,
+        // mlAdvancedSettingsFields.new_product_sale_days,
+        mlAdvancedSettingsFields.impute_irregular_spikes,
+        mlAdvancedSettingsFields.spike_clusters,
+        mlAdvancedSettingsFields.impute_out_of_stock,
+        mlAdvancedSettingsFields.out_of_stock_clusters,
+        mlAdvancedSettingsFields.rate_of_decline,
+      ],
+    },
+
+    FS: {
+      title: "Feature Engineering Settings",
+      description:
+        "Advanced model parameters like model selection and feature selection",
+      btnTitle: "Confirm",
+      isArray: false,
+      isHyperParam: false,
+      features: [
+        mlAdvancedSettingsFields.feature_types,
+        mlAdvancedSettingsFields.oscillator_features,
+        mlAdvancedSettingsFields.create_gap_offset,
+        mlAdvancedSettingsFields.driver_offset_cols,
+        mlAdvancedSettingsFields.offset_period_types,
+        mlAdvancedSettingsFields.function_types,
+        mlAdvancedSettingsFields.create_gap_lag,
+        mlAdvancedSettingsFields.min_lag,
+        mlAdvancedSettingsFields.max_lag,
+        mlAdvancedSettingsFields.lag_step,
+        mlAdvancedSettingsFields.customer_tag_values,
+        mlAdvancedSettingsFields.time_interaction_dimensions,
+        mlAdvancedSettingsFields.compute_mutual_info,
+        mlAdvancedSettingsFields.mutual_info_frac,
+        mlAdvancedSettingsFields.use_top_n,
+        mlAdvancedSettingsFields.top_n_features,
+        mlAdvancedSettingsFields.backfill_time_series,
+        mlAdvancedSettingsFields.sinusoidal_freq_max_count,
+      ],
+    },
+    PA: {
+      title: "Add Planner Adjustments",
+      description: "Create features to adjust historical data gaps",
+      btnTitle: "Add Adjustment",
+      isArray: true,
+      arrayName: "operations",
+      isHyperParam: false,
+      features: [
+        mlAdvancedSettingsFields.operation_name,
+        mlAdvancedSettingsFields.select_dimension,
+        mlAdvancedSettingsFields.select_value,
+        mlAdvancedSettingsFields.adjustments_start_date,
+        mlAdvancedSettingsFields.adjustments_end_date,
+        mlAdvancedSettingsFields.adjustment_type,
+        mlAdvancedSettingsFields.adjustment_value,
+        mlAdvancedSettingsFields.adjustment_time_steps,
+        mlAdvancedSettingsFields.adjustment_future_history,
+      ],
+    },
+    EF: {
+      title: "Add Exogenous Features",
+      description: "Add and configure exogenous features",
+      btnTitle: "Add Feature",
+      isArray: true,
+      arrayName: "exogenous_features",
+      isHyperParam: false,
+      features: [
+        mlAdvancedSettingsFields.exogenous_feature_name,
+        mlAdvancedSettingsFields.enrichment_start_date_1,
+        mlAdvancedSettingsFields.enrichment_end_date_1,
+      ],
+    },
+    APE: {
+      title: "Add Planner Enrichment",
+      description: "Configure planner enrichments",
+      btnTitle: "Add Enrichment",
+      isArray: true,
+      arrayName: "enrichment_bydate",
+      isHyperParam: false,
+      features: [
+        mlAdvancedSettingsFields.enrichment_operation_name,
+        mlAdvancedSettingsFields.enrichment_select_dimension,
+        mlAdvancedSettingsFields.enrichment_select_value,
+        mlAdvancedSettingsFields.enrichment_start_date,
+        mlAdvancedSettingsFields.enrichment_end_date,
+        mlAdvancedSettingsFields.enrichment_type,
+        mlAdvancedSettingsFields.enrichment_value,
+      ],
+    },
+
+    MLO: {
+      title: "MLOps Settings",
+      description: "Configure MLOps Settings like instance size",
+      btnTitle: "Confirm",
+      isArray: false,
+      isHyperParam: false,
+      features: [mlAdvancedSettingsFields.instance_size],
+    },
+
+    GS: {
+      title: "General Settings",
+      description: "Configure General Settings like File Type",
+      btnTitle: "Confirm",
+      isArray: false,
+      isHyperParam: false,
+      features: [
+        mlAdvancedSettingsFields.file_type,
+        mlAdvancedSettingsFields.show_forecasting_pivot_disaggregated,
+        mlAdvancedSettingsFields.hide_forecasting_pivot_table,
+        mlAdvancedSettingsFields.align_period_labels_to_start,
+      ],
+    },
+    CD: {
+      title: "Calendar Definitions",
+      description: "Configure Calendar Definitions",
+      btnTitle: "Confirm",
+      isArray: false,
+      isHyperParam: false,
+      features: [
+        mlAdvancedSettingsFields.week_active_days,
+        mlAdvancedSettingsFields.date_offset,
+      ],
+    },
+    "FRS":{
+      title: "Forecast Reference Settings",
+      description: "Configure Forecast Reference Settings",
+      btnTitle: "Confirm",
+      isArray: false,
+      isHyperParam: false,
+      arrayName: "forecast_data_reference",
+      features: [
+        mlAdvancedSettingsFields.forecast_data_reference_item_exp_path,
+        mlAdvancedSettingsFields.forecast_data_reference_item_forecast_type,
+        mlAdvancedSettingsFields.forecast_data_reference_item_column_tag,
+      ],
+    },
+
+    SNOP: {
+      title: "S&OP Settings",
+      description: "Configure S&OP Settings",
+      btnTitle: "Confirm",
+      isArray: false,
+      isHyperParam: false,
+      features: [
+        mlAdvancedSettingsFields.ts_id_view,
+        mlAdvancedSettingsFields.historical_horizon,
+        mlAdvancedSettingsFields.view0_report_name,
+        mlAdvancedSettingsFields.view1_report_name,
+        mlAdvancedSettingsFields.zero_sales_lag,
+        mlAdvancedSettingsFields.zero_forecast_horizon,
+        mlAdvancedSettingsFields.calc_dimensions_accuracy,
+        mlAdvancedSettingsFields.dimensions_for_accuracy,
+        mlAdvancedSettingsFields.enable_aggregation,
+        mlAdvancedSettingsFields.create_future_locked_forecast_data,
+        mlAdvancedSettingsFields.create_future_sales_data,
+        mlAdvancedSettingsFields.consensus_overwrite,
+        mlAdvancedSettingsFields.convert_to_integer,
+
+        mlAdvancedSettingsFields.current_sales_including_open_po,
+        mlAdvancedSettingsFields.accuracy_calculation,
+      ],
+    },
+
+    FEAS: {
+      title: "Forecast Enrichment Agent Settings",
+      description: "Configure Forecast Enrichment Agent Settings",
+      btnTitle: "Confirm",
+      isArray: false,
+      isHyperParam: false,
+      features: [
+        mlAdvancedSettingsFields.rl_agents,
+        mlAdvancedSettingsFields.forecast_type_for_reward,
+        mlAdvancedSettingsFields.forecast_deviation,
+        mlAdvancedSettingsFields.accuracy_by_test_horizon,
+        mlAdvancedSettingsFields.test_horizon,
+        mlAdvancedSettingsFields.accuracy_by_n_horizon,
+        mlAdvancedSettingsFields.past_accuracy_horizon,
+        mlAdvancedSettingsFields.enable_rl_agent_forecast,
+        mlAdvancedSettingsFields.rl_agent_forecast_granularity,
+        mlAdvancedSettingsFields.rl_agent_forecast_eligible_actions,
+        mlAdvancedSettingsFields.rl_agent_start_date,
+        mlAdvancedSettingsFields.rl_agent_end_date,
+      ],
+    },
+
+    AHS:{
+      title : "Agent History Settings",
+      description: "Configure Agent History Settings",
+      btnTitle: "Confirm",
+      isArray: false,
+      isHyperParam: false,
+      arrayName: "experiments_history",
+      features: [
+        mlAdvancedSettingsFields.experiments_history_exp_path,
+        mlAdvancedSettingsFields.experiments_history_date_tag,
+      ],
+    },
+
+    //Hyperparams
+
+    XGB: {
+      title: "Xgboost",
+      description: "Xgboost Hyperparameters",
+      btnTitle: "Confirm",
+      isArray: false,
+      isHyperParam: true,
+
+      features: [
+        mlAdvancedSettingsFields.xg_boost_multiprocessing,
+        mlAdvancedSettingsFields.xg_boost_best_trials,
+
+        mlAdvancedSettingsFields.xg_boost_feature_group,
+        mlAdvancedSettingsFields.xg_boost_scale,
+        mlAdvancedSettingsFields.xg_boost_exclude_cols,
+
+        mlAdvancedSettingsFields.xg_boost_max_evals,
+        mlAdvancedSettingsFields.xg_boost_early_stopping_rounds,
+        mlAdvancedSettingsFields.xg_boost_booster,
+
+        mlAdvancedSettingsFields.xg_boost_learning_rate,
+        mlAdvancedSettingsFields.xg_boost_max_depth,
+        mlAdvancedSettingsFields.xg_boost_reg_lambda,
+        mlAdvancedSettingsFields.xg_boost_n_estimators,
+      ],
+    },
+    LGBM: {
+      title: "Lgbm",
+      description: "LGBM Hyperparameters",
+      btnTitle: "Confirm",
+      isArray: false,
+      isHyperParam: true,
+
+      features: [
+        mlAdvancedSettingsFields.lgbm_multiprocessing,
+        mlAdvancedSettingsFields.lgbm_best_trials,
+        mlAdvancedSettingsFields.lgbm_feature_group,
+        mlAdvancedSettingsFields.lgbm_scale,
+        mlAdvancedSettingsFields.lgbm_exclude_cols,
+        mlAdvancedSettingsFields.lgbm_max_evals,
+        mlAdvancedSettingsFields.lgbm_early_stopping_rounds,
+        mlAdvancedSettingsFields.lgbm_boosting_type,
+        mlAdvancedSettingsFields.lgbm_objective,
+        mlAdvancedSettingsFields.lgbm_learning_rate,
+        mlAdvancedSettingsFields.lgbm_max_depth,
+        mlAdvancedSettingsFields.lgbm_num_leaves,
+        mlAdvancedSettingsFields.lgbm_reg_lambda,
+        mlAdvancedSettingsFields.lgbm_n_estimators,
+      ],
+    },
+
+    XGBL: {
+      title: "Xgblinear",
+      description: "Xgblinear Linear Hyperparameters",
+      btnTitle: "Confirm",
+      isArray: false,
+      isHyperParam: true,
+
+      features: [
+        mlAdvancedSettingsFields.xgb_linear_multiprocessing,
+        mlAdvancedSettingsFields.xgb_linear_best_trials,
+
+        mlAdvancedSettingsFields.xgb_linear_feature_group,
+        mlAdvancedSettingsFields.xgb_linear_scale,
+        mlAdvancedSettingsFields.xgb_linear_exclude_cols,
+
+        mlAdvancedSettingsFields.xgb_linear_max_evals,
+        mlAdvancedSettingsFields.xgb_linear_early_stopping_rounds,
+        mlAdvancedSettingsFields.xgb_linear_booster,
+        mlAdvancedSettingsFields.xgb_linear_max_depth,
+        mlAdvancedSettingsFields.xgb_linear_learning_rate,
+        mlAdvancedSettingsFields.xgb_linear_reg_lambda,
+        mlAdvancedSettingsFields.xgb_linear_n_estimators,
+      ],
+    },
+
+    RF: {
+      title: "RandomForest",
+      description: "Random Forest Hyperparameters",
+      btnTitle: "Confirm",
+      isArray: false,
+      isHyperParam: true,
+
+      features: [
+        mlAdvancedSettingsFields.rf_multiprocessing,
+        mlAdvancedSettingsFields.rf_best_trials,
+
+        mlAdvancedSettingsFields.rf_feature_group,
+        mlAdvancedSettingsFields.rf_scale,
+        mlAdvancedSettingsFields.rf_exclude_cols,
+
+        mlAdvancedSettingsFields.rf_max_evals,
+        mlAdvancedSettingsFields.rf_max_depth,
+        mlAdvancedSettingsFields.rf_min_samples_leaf,
+        mlAdvancedSettingsFields.rf_n_estimators,
+      ],
+    },
+
+    MLP: {
+      title: "MLP",
+      description: "MLP Neural Network Hyperparameters",
+      btnTitle: "Confirm",
+      isArray: false,
+      isHyperParam: true,
+      isDeepHyperParams: true,
+
+      features: [
+        mlAdvancedSettingsFields.mlp_multiprocessing,
+
+        mlAdvancedSettingsFields.mlp_feature_group,
+        mlAdvancedSettingsFields.mlp_feature_group_type,
+        mlAdvancedSettingsFields.mlp_scale,
+        mlAdvancedSettingsFields.mlp_exclude_cols,
+        mlAdvancedSettingsFields.mlp_hyperparam_trials,
+        mlAdvancedSettingsFields.mlp_random_sample,
+        mlAdvancedSettingsFields.mlp_trials,
+
+        mlAdvancedSettingsFields.mlp_trial_params,
+        mlAdvancedSettingsFields.mlp_params,
+      ],
+    },
+
+    LSTM: {
+      title: "LSTM",
+      description: "LSTM Neural Network Hyperparameters",
+      btnTitle: "Confirm",
+      isArray: false,
+      isHyperParam: true,
+      isDeepHyperParams: true,
+
+      features: [
+        mlAdvancedSettingsFields.lstm_multiprocessing,
+
+        mlAdvancedSettingsFields.lstm_feature_group,
+        mlAdvancedSettingsFields.lstm_feature_group_type,
+        mlAdvancedSettingsFields.lstm_scale,
+        mlAdvancedSettingsFields.lstm_exclude_cols,
+        mlAdvancedSettingsFields.lstm_hyperparam_trials,
+        mlAdvancedSettingsFields.lstm_random_sample,
+        mlAdvancedSettingsFields.lstm_trials,
+        mlAdvancedSettingsFields.lstm_trial_params,
+        mlAdvancedSettingsFields.lstm_params,
+      ],
+    },
+
+    GRU: {
+      title: "GRU",
+      description: "GRU Neural Network Hyperparameters",
+      btnTitle: "Confirm",
+      isArray: false,
+      isHyperParam: true,
+      isDeepHyperParams: true,
+
+      features: [
+        mlAdvancedSettingsFields.gru_multiprocessing,
+
+        mlAdvancedSettingsFields.gru_feature_group,
+        mlAdvancedSettingsFields.gru_feature_group_type,
+        mlAdvancedSettingsFields.gru_scale,
+        mlAdvancedSettingsFields.gru_exclude_cols,
+        mlAdvancedSettingsFields.gru_hyperparam_trials,
+        mlAdvancedSettingsFields.gru_random_sample,
+        mlAdvancedSettingsFields.gru_trials,
+        mlAdvancedSettingsFields.gru_trial_params,
+        mlAdvancedSettingsFields.gru_params,
+      ],
+    },
+  };
+};

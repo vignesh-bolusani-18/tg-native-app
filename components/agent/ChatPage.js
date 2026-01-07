@@ -176,13 +176,37 @@ const ChatPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentCompany?.companyID]); // ⭐ ONLY depend on companyID change
 
-  // Initialize Conversation
+  // ⭐ Initialize Conversation - Create default chat on first load
+  // Runs once when component mounts if no conversation exists
   useEffect(() => {
-    if (!currentConversationId && (!conversations || Object.keys(conversations).length === 0)) {
-      console.log("🎬 Creating default chat");
+    // Check both conversations object AND conversation_list being empty
+    const hasNoConversations = !conversations || Object.keys(conversations).length === 0;
+    
+    if (!currentConversationId && hasNoConversations) {
+      console.log("🎬 Creating default chat - no existing conversations");
       createNewChat("supply_chain_manager_workflow", "New Chat").catch(err => console.error(err));
     }
-  }, [conversations, createNewChat, currentConversationId]);
+    // ⭐ Only run on mount and when conversation state changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  
+  // ⭐ Safety net: If somehow we have no active conversation after load, create one
+  // This handles edge cases like when all conversations were deleted
+  useEffect(() => {
+    // Wait a bit for initial load to complete
+    const timer = setTimeout(() => {
+      if (!currentConversationId) {
+        console.log("⚠️ No active conversation after initial load - creating one");
+        createNewChat("supply_chain_manager_workflow", "New Chat").catch(err => 
+          console.error("Failed to create safety net chat:", err)
+        );
+      }
+    }, 1500); // 1.5 second delay to let initial state settle
+    
+    return () => clearTimeout(timer);
+    // ⭐ Only re-run if currentConversationId changes from undefined/null
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentConversationId === null]);
 
   /* Unused handler - keeping for future use
   const handleNewChat = useCallback(async () => {

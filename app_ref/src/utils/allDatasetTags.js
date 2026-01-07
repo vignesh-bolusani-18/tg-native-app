@@ -1,0 +1,16 @@
+export const AllDatasetTags = [
+  "sales",
+  "inventory",
+  "others",
+  "inventoryothers",
+  "item_master",
+  "future",
+  "bom_mapping",
+  "bom_inventory",
+  "bomothers",
+  "forecast",
+  "new_product",
+  "simple_disaggregation_mapping",
+  "rewrite_forecast",
+  "transition_item",
+];

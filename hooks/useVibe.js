@@ -6,56 +6,56 @@ import "react-native-get-random-values";
 import { v4 as uuidv4 } from "uuid";
 
 import {
-    addMessage as AddMessage,
-    addSelectedDataset as AddSelectedDataset,
-    addSelectedExpDataset as AddSelectedExpDataset,
-    clearConversations as ClearConversations,
-    clearError as ClearError,
-    clearSelectedAnalysisExperiment as ClearSelectedAnalysisExperiment,
-    clearSelectedDatasets as ClearSelectedDatasets,
-    clearUserMessage as ClearUserMessage,
-    createNewConversation,
-    deleteConversation,
-    initializeConversations as InitializeConversations,
-    removeMessage,
-    removeSelectedDataset as RemoveSelectedDataset,
-    setAdvancedAnswersConfirmed as SetAdvancedAnswersConfirmed,
-    setAdvancedQuestionsAnswered as SetAdvancedQuestionsAnswered,
-    setAnalysisDataPathDict as SetAnalysisDataPathDict,
-    setAnalysisSystemPrompt as SetAnalysisSystemPrompt,
-    setChatInitialized as SetChatInitialized,
-    setContextAnswersConfirmed as SetContextAnswersConfirmed,
-    setContextQuestionsAnswered as SetContextQuestionsAnswered,
-    setDataConfirmed as SetDataConfirmed,
-    setDataTagged as SetDataTagged,
-    setDataUploaded as SetDataUploaded,
-    setExperimentStatusHistory as SetExperimentStatusHistory,
-    setHasConversation as SetHasConversation,
-    setIsSidebarOpenReducer as SetIsSidebarOpenReducer,
-    setNavigating as SetNavigating,
-    setOpenDataTagger as SetOpenDataTagger,
-    setProcessingStepText as SetProcessingStepText,
-    setSelectedAnalysisExperiment as SetSelectedAnalysisExperiment,
-    setStreamingStatus as SetStreamingStatus,
-    setUserMessage as SetUserMessage,
-    setWaitingForAI,
-    switchConversation,
-    updateConversationId as UpdateConversationId,
-    updateMessage,
-    updateMessageContent,
-    updateProcessingStepText as UpdateProcessingStepText,
+  addMessage as AddMessage,
+  addSelectedDataset as AddSelectedDataset,
+  addSelectedExpDataset as AddSelectedExpDataset,
+  clearConversations as ClearConversations,
+  clearError as ClearError,
+  clearSelectedAnalysisExperiment as ClearSelectedAnalysisExperiment,
+  clearSelectedDatasets as ClearSelectedDatasets,
+  clearUserMessage as ClearUserMessage,
+  createNewConversation,
+  deleteConversation,
+  initializeConversations as InitializeConversations,
+  removeMessage,
+  removeSelectedDataset as RemoveSelectedDataset,
+  setAdvancedAnswersConfirmed as SetAdvancedAnswersConfirmed,
+  setAdvancedQuestionsAnswered as SetAdvancedQuestionsAnswered,
+  setAnalysisDataPathDict as SetAnalysisDataPathDict,
+  setAnalysisSystemPrompt as SetAnalysisSystemPrompt,
+  setChatInitialized as SetChatInitialized,
+  setContextAnswersConfirmed as SetContextAnswersConfirmed,
+  setContextQuestionsAnswered as SetContextQuestionsAnswered,
+  setDataConfirmed as SetDataConfirmed,
+  setDataTagged as SetDataTagged,
+  setDataUploaded as SetDataUploaded,
+  setExperimentStatusHistory as SetExperimentStatusHistory,
+  setHasConversation as SetHasConversation,
+  setIsSidebarOpenReducer as SetIsSidebarOpenReducer,
+  setNavigating as SetNavigating,
+  setOpenDataTagger as SetOpenDataTagger,
+  setProcessingStepText as SetProcessingStepText,
+  setSelectedAnalysisExperiment as SetSelectedAnalysisExperiment,
+  setStreamingStatus as SetStreamingStatus,
+  setUserMessage as SetUserMessage,
+  setWaitingForAI,
+  switchConversation,
+  updateConversationId as UpdateConversationId,
+  updateConversationName,
+  updateMessage,
+  updateMessageContent,
+  updateProcessingStepText as UpdateProcessingStepText,
 } from "../redux/slices/vibeSlice";
 
-
 import {
-    addConversationFromSidebarAction,
-    addNewConversationAction,
-    decrementCreditsAction,
-    deleteConversationAction,
-    fetchAndStoreExperimentData,
-    fetchCreditScoreAction,
-    loadConversationListAction,
-    renameConversationAction,
+  addConversationFromSidebarAction,
+  addNewConversationAction,
+  decrementCreditsAction,
+  deleteConversationAction,
+  fetchAndStoreExperimentData,
+  fetchCreditScoreAction,
+  loadConversationListAction,
+  renameConversationAction,
 } from "../redux/actions/vibeAction";
 
 import useAuth from "./useAuth";
@@ -63,19 +63,17 @@ import useAuth from "./useAuth";
 export const useVibe = () => {
   const dispatch = useDispatch();
   const { userInfo, currentCompany } = useAuth();
-  // const router = useRouter();
-  // const pathname = usePathname();
-  // const params = useLocalSearchParams(); // Get ID from route params in Expo
-
-  // Extract conversation ID from URL params (if present)
- 
+  // const router = useRouter(); // Navigation placeholder
 
   const vibeState = useSelector((state) => state.vibe);
 
-  // New conversation-based structure
+  // ------------------------------------------------------------------
+  // State Destructuring (Matched to WebApp)
+  // ------------------------------------------------------------------
   const {
     conversations = {},
     currentConversationId = null,
+    // Legacy fields for backward compatibility
     messages = [],
     isWaitingForAI = false,
     processingStepText = "Thinking...",
@@ -98,12 +96,6 @@ export const useVibe = () => {
     typeof conversations === "object" && conversations !== null
       ? conversations
       : {};
-  
-  // Memoize safeConversations to avoid unnecessary re-renders if possible, 
-  // but since we are inside a hook, we rely on useSelector returning the same reference if state hasn't changed.
-  // The warning "Selector _temp2 returned a different result" usually comes from inline selectors or mapState functions returning new objects.
-  // Here we are selecting the whole state.vibe, which changes on every action.
-  // To fix the warning, we should select specific fields.
 
   const safeCurrentConversationId = currentConversationId || null;
   const previousConversationId = useRef(safeCurrentConversationId);
@@ -112,45 +104,59 @@ export const useVibe = () => {
   const currentConversation = safeCurrentConversationId
     ? safeConversations[safeCurrentConversationId]
     : null;
-  
-  // Debug logging disabled for production - uncomment for debugging
-  // console.log('[useVibe] State:', { conversationId: safeCurrentConversationId, messageCount: currentConversation?.messages?.length || 0 });
-  
+
   const navigating = currentConversation?.navigating || false;
   const conversationState = currentConversation?.["conversation_state"] || null;
   const currentMessages = currentConversation?.messages || [];
-  const selectedAnalysisExperiment = currentConversation?.selectedAnalysisExperiment || null;
-  const analysisSystemPrompt = currentConversation?.analysisSystemPrompt || null;
-  const analysisDataPathDict = currentConversation?.analysisDataPathDict || null;
+  const selectedAnalysisExperiment =
+    currentConversation?.selectedAnalysisExperiment || null;
+  const analysisSystemPrompt =
+    currentConversation?.analysisSystemPrompt || null;
+  const analysisDataPathDict =
+    currentConversation?.analysisDataPathDict || null;
 
   const isStreaming = currentConversation?.isStreaming || false;
   const currentProgress = currentConversation?.currentProgress || [];
   const error = currentConversation?.error || null;
   const lastMessage = currentConversation?.lastMessage || null;
-  const hasConversation = currentConversation ? (currentConversation?.hasConversation !== false) : true;
+  // Always return true if currentConversation exists, unless explicitly set to false
+  const hasConversation = currentConversation
+    ? currentConversation?.hasConversation !== false
+    : true;
   const langgraphState = currentConversation?.langgraphState || null;
   const chatInitialized = currentConversation?.chatInitialized || false;
   const selectedDatasets = currentConversation?.selectedDatasets || {};
   const userMessage = currentConversation?.userMessage || "";
 
+  // ------------------------------------------------------------------
+  // Navigation & Effects (Adapted for Mobile)
+  // ------------------------------------------------------------------
+  
   // Handle navigation when conversation changes
+  // ⭐ FIXED: Only log once when conversation actually changes
   useEffect(() => {
-    // Skip scenario pages check in mobile app
-
     if (previousConversationId.current !== safeCurrentConversationId) {
       if (safeCurrentConversationId) {
-        // In Expo Router, navigate to dynamic route
-        // Assuming your file structure is app/chat/[conversationId].tsx
+        // In Native/Expo, you would trigger router.replace here
         // router.replace(`/chat/${safeCurrentConversationId}`);
-        // But for a single page chat app, we might just update state and stay on same screen
-        console.log("Switched to conversation:", safeCurrentConversationId);
-      } 
+        console.log("🔄 Switched to conversation:", safeCurrentConversationId);
+      }
       previousConversationId.current = safeCurrentConversationId;
     }
-  }, [safeCurrentConversationId, dispatch]);
+    // ⭐ FIXED: Remove dispatch from dependencies - it doesn't change and causes re-runs
+  }, [safeCurrentConversationId]);
 
-  // New conversation management functions
+  // Get conversation list for sidebar
+  const conversationList = Object.values(safeConversations).sort(
+    (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)
+  );
+
+  // ------------------------------------------------------------------
+  // Chat Management Functions (Matched to WebApp)
+  // ------------------------------------------------------------------
+
   const createNewChat = async (workflowName = "default_workflow", title = null) => {
+    // Native replacement for crypto.randomUUID()
     const conversationId = uuidv4();
 
     // 1. Create in Redux
@@ -170,8 +176,9 @@ export const useVibe = () => {
     };
 
     // WAIT for the backend persistence to complete before returning
-    await dispatch(addNewConversationAction(tokenPayload)).catch(err => {
+    await dispatch(addNewConversationAction(tokenPayload)).catch((err) => {
       console.error("createNewChat: Failed to save to backend:", err);
+      // Don't throw - conversation still exists in Redux
     });
 
     return conversationId;
@@ -180,7 +187,7 @@ export const useVibe = () => {
   const switchToConversation = (conversationId) => {
     if (safeConversations[conversationId]) {
       dispatch(switchConversation(conversationId));
-      // In Expo, if we are using a dynamic route, push to it
+      // In Expo, navigation would happen here or via the useEffect
       // router.push(`/chat/${conversationId}`);
     }
   };
@@ -189,6 +196,7 @@ export const useVibe = () => {
     console.log("updateConversationId: conversationId =", conversationId);
     await dispatch(UpdateConversationId(conversationId));
   };
+
   const updateProcessingStepText = (processingStepText) => {
     dispatch(UpdateProcessingStepText(processingStepText));
   };
@@ -204,6 +212,7 @@ export const useVibe = () => {
   const setStreamingStatus = (streamingStatus) => {
     dispatch(SetStreamingStatus(streamingStatus));
   };
+
   const deleteConversationById = (conversationId) => {
     if (safeConversations[conversationId]) {
       dispatch(deleteConversation(conversationId));
@@ -212,22 +221,82 @@ export const useVibe = () => {
 
   const addMessage = async (message) => {
     await dispatch(AddMessage(message));
-    if(currentMessages.length === 0){
+    // ⭐ MATCHES app_ref: Rename conversation on first message
+    // Only rename if conversation exists on backend (in conversation_list)
+    if (currentMessages.length === 0) {
       console.log("First message added to conversation:", message);
-      dispatch(renameConversationAction({
-        conversationID: safeCurrentConversationId,
-        updatedAt: Date.now(),
-        newConversationName: message.content.slice(0, 50),
-        conversation_name: message.content.slice(0, 50)
-      }));
+      // Check if this conversation exists in conversation_list (backend)
+      const existsOnBackend = conversation_list?.some(
+        (c) => c.conversationID === safeCurrentConversationId
+      );
+      if (existsOnBackend) {
+        dispatch(renameConversationAction({
+          conversationID: safeCurrentConversationId,
+          updatedAt: Date.now(),
+          newConversationName: message.content.slice(0, 50), // First 50 chars as title
+          conversation_name: message.content.slice(0, 50)
+        }));
+      } else {
+        console.log("Conversation not on backend - creating it now");
+        // Create conversation on backend first, then rename
+        const tokenPayload = {
+          conversationID: safeCurrentConversationId,
+          userID: userInfo?.userID,
+          companyID: userInfo?.companyID,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          messageCount: 1,
+          workflowsUsed: [],
+          experiments: {},
+          conversation_name: message.content.slice(0, 50),
+        };
+        
+        try {
+          await dispatch(addNewConversationAction(tokenPayload));
+          console.log("✅ Conversation created on backend:", safeCurrentConversationId);
+        } catch (err) {
+          console.warn("Failed to create conversation on backend:", err);
+          // Still update local title even if backend fails
+        }
+        
+        // Update local title
+        dispatch(updateConversationName({
+          conversationID: safeCurrentConversationId,
+          newConversationName: message.content.slice(0, 50),
+        }));
+      }
     }
   };
 
+  // Single function to manage isWaitingForAI state (Web Logic)
   const setWaitingForAIState = (waitingForAI) => {
     try {
-      dispatch(setWaitingForAI(Boolean(waitingForAI)));
+      if (typeof waitingForAI !== "boolean") {
+        console.warn(
+          "setWaitingForAIState: Expected boolean, got:",
+          typeof waitingForAI,
+          waitingForAI
+        );
+        waitingForAI = Boolean(waitingForAI);
+      }
+
+      dispatch(setWaitingForAI(waitingForAI));
+      console.log("setWaitingForAIState: isWaitingForAI set to", waitingForAI);
+
+      // Additional logging for debugging
+      if (waitingForAI) {
+        console.log("🔄 AI processing started - waiting for response");
+      } else {
+        console.log("✅ AI processing completed - no longer waiting");
+      }
     } catch (error) {
       console.error("Error in setWaitingForAIState:", error);
+      // Fallback: try to dispatch with a simple action
+      try {
+        dispatch({ type: "vibe/setWaitingForAI", payload: waitingForAI });
+      } catch (fallbackError) {
+        console.error("Fallback dispatch also failed:", fallbackError);
+      }
     }
   };
 
@@ -259,6 +328,10 @@ export const useVibe = () => {
     dispatch(SetNavigating(navigating));
   };
 
+  // ------------------------------------------------------------------
+  // EXPERIMENT CODE (UNTOUCHED NATIVE IMPLEMENTATION)
+  // ------------------------------------------------------------------
+  
   const fetchAndStoreExperimentDataForConversation = async (
     experimentId,
     currentCompany,
@@ -292,6 +365,11 @@ export const useVibe = () => {
     return {};
   };
 
+  // ------------------------------------------------------------------
+  // Continued WebApp Logic Matching
+  // ------------------------------------------------------------------
+
+  // Keep the old function for backward compatibility
   const setIsWaitingForAI = (waitingForAI) => {
     setWaitingForAIState(waitingForAI);
   };
@@ -306,6 +384,10 @@ export const useVibe = () => {
 
   const setProcessingStepText = (processingStepText) => {
     dispatch(SetProcessingStepText(processingStepText));
+    console.log(
+      "setProcessingStepText: processingStepText =",
+      processingStepText
+    );
   };
 
   const setChatInitialized = (initialized) => {
@@ -318,64 +400,116 @@ export const useVibe = () => {
 
   // Message editing functions
   const editMessage = (messageId, updates) => {
-    dispatch(updateMessage({ messageId, updates }));
+    try {
+      dispatch(updateMessage({ messageId, updates }));
+      console.log(`Message ${messageId} updated with:`, updates);
+    } catch (error) {
+      console.error("Error updating message:", error);
+    }
   };
 
   const editMessageContent = (messageId, content) => {
-    dispatch(updateMessageContent({ messageId, content }));
+    try {
+      dispatch(updateMessageContent({ messageId, content }));
+      console.log(`Message ${messageId} content updated to:`, content);
+    } catch (error) {
+      console.error("Error updating message content:", error);
+    }
   };
 
   const deleteMessage = (messageId) => {
-    dispatch(removeMessage(messageId));
+    try {
+      dispatch(removeMessage(messageId));
+      console.log(`Message ${messageId} removed`);
+    } catch (error) {
+      console.error("Error removing message:", error);
+    }
   };
 
+  // Get current streaming message
   const getCurrentStreamingMessage = () => {
     if (!isStreaming || currentProgress.length === 0) return "";
+
+    // Get the latest progress update
     const latestProgress = currentProgress[currentProgress.length - 1];
+
     if (latestProgress.message_type === "final_result") {
       return latestProgress.message;
     }
+
+    // For streaming updates, show the current message
     return latestProgress.message || "";
   };
 
+  // ===== REFRESH CREDITS FUNCTION =====
   const refreshCredits = async () => {
     try {
+      // Fetch from backend and update Redux store
       const updatedScore = await dispatch(fetchCreditScoreAction());
+      console.log("✅ Credits refreshed:", updatedScore);
       return updatedScore;
     } catch (err) {
-      console.error("refreshCredits failed:", err);
-      throw err;
+      console.error("❌ refreshCredits failed:", err);
+      throw err; // Re-throw so UI can handle it
     }
   };
 
+  // Decrement credits helper
   const decrementCredits = async (amount = 1) => {
     dispatch(decrementCreditsAction(amount));
   };
 
-  const addDatasetToSelection = (datasetName, isUploaded, companyName, companyId) => {
-    dispatch(AddSelectedDataset({ datasetName, isUploaded, companyName, companyId }));
+  // Add a dataset to selectedDatasets dictionary
+  const addDatasetToSelection = (
+    datasetName,
+    isUploaded,
+    companyName,
+    companyId
+  ) => {
+    dispatch(
+      AddSelectedDataset({
+        datasetName,
+        isUploaded,
+        companyName,
+        companyId,
+      })
+    );
+    console.log("📊 useVibe: Added dataset to selection:", datasetName);
   };
 
+  // Remove a dataset from selectedDatasets dictionary
   const removeDatasetFromSelection = (datasetName) => {
     dispatch(RemoveSelectedDataset(datasetName));
+    console.log("📊 useVibe: Removed dataset from selection:", datasetName);
   };
 
+  // Clear all selected datasets
   const clearAllSelectedDatasets = () => {
     dispatch(ClearSelectedDatasets());
+    console.log(" ClearSelectedDatasets action dispatched");
   };
 
+  // Set the selected message (what user is typing)
   const addUserMessage = (message) => {
     dispatch(SetUserMessage(message));
+    console.log("💬 useVibe: Set selected message:", message);
   };
 
+  // Clear the selected message
   const removeUserMessage = () => {
     dispatch(ClearUserMessage());
+    console.log("💬 useVibe: Cleared selected message");
   };
 
   const addExpDatasetToSelection = (expDatasetPath, datasetName) => {
     dispatch(AddSelectedExpDataset({ expDatasetPath, datasetName }));
+    console.log(
+      "📊 useVibe: Added experiment dataset to selection:",
+      expDatasetPath
+    );
   };
 
+  // Analysis experiment selection functions
   const setSelectedAnalysisExperiment = (experiment) => {
     dispatch(SetSelectedAnalysisExperiment(experiment));
   };
@@ -393,11 +527,16 @@ export const useVibe = () => {
   };
 
   const addNewConversation = () => {
-    if (!currentConversation) return;
+    // Ensure currentConversation exists before accessing its properties
+    if (!currentConversation) {
+      console.warn("addNewConversation: currentConversation is null/undefined");
+      return;
+    }
 
+    // Convert ISO string to Unix timestamp (milliseconds)
     const getUnixTimestamp = (dateStr) => {
       try {
-        if (typeof dateStr === 'number') return dateStr;
+        if (typeof dateStr === "number") return dateStr; // Already a timestamp
         return new Date(dateStr).getTime();
       } catch (_e) {
         return Date.now();
@@ -413,7 +552,7 @@ export const useVibe = () => {
       messageCount: currentConversation.messageCount || 0,
       workflowsUsed: [],
       experiments: currentConversation.experiments,
-      conversation_name: currentConversation.title || "New Chat"
+      conversation_name: currentConversation.title || "New Chat",
     };
 
     dispatch(addNewConversationAction(tokenPayload));
@@ -425,7 +564,9 @@ export const useVibe = () => {
 
   const addConversationFromSidebar = async (conversationID) => {
     const conversationPath = `accounts/${currentCompany.companyName}_${currentCompany.companyID}/conversations/${conversationID}/conversation_state.json`;
-    return dispatch(addConversationFromSidebarAction({conversationID, conversationPath}));
+    return dispatch(
+      addConversationFromSidebarAction({ conversationID, conversationPath })
+    );
   };
 
   const setIsSidebarOpen = (isOpen) => {
@@ -437,7 +578,7 @@ export const useVibe = () => {
       conversationID: conversationID,
       updatedAt: Date.now(),
       newConversationName: newTitle,
-      conversation_name: newTitle
+      conversation_name: newTitle,
     };
     dispatch(renameConversationAction(tokenPayload));
   };
@@ -450,7 +591,8 @@ export const useVibe = () => {
   };
 
   return {
-    messages: currentMessages, // Return current conversation's messages
+    // State
+    messages, // Legacy messages array from state (matches web)
     isStreaming,
     currentProgress,
     error,
@@ -471,9 +613,11 @@ export const useVibe = () => {
     advancedAnswersConfirmed,
     experimentStatusHistory,
     chatInitialized,
+    
+    // Chat management
     getCurrentStreamingMessage,
-    setWaitingForAIState,
-    setIsWaitingForAI,
+    setWaitingForAIState, // New single function
+    setIsWaitingForAI, // Keep for backward compatibility
     setHasConversation,
     clearError,
     setProcessingStepText,
@@ -487,19 +631,25 @@ export const useVibe = () => {
     setAdvancedAnswersConfirmed,
     setExperimentStatusHistory,
     setStreamingStatus,
+
+    // Experiment data management
     fetchAndStoreExperimentDataForConversation,
     getExperimentData,
     getAllExperimentsData,
+
+    // Message editing functions
     editMessage,
     editMessageContent,
     deleteMessage,
     addMessage,
+
+    // New conversation management
     createNewChat,
     switchToConversation,
     updateConversationId,
     deleteConversationById,
     initializeConversations,
-    conversationList: Object.values(safeConversations).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)),
+    conversationList, // Using the new WebApp logic sort
     currentMessages,
     conversations: safeConversations,
     updateProcessingStepText,
@@ -509,8 +659,8 @@ export const useVibe = () => {
     setNavigating,
     navigating,
     decrementCredits,
-    creditScore,
-    refreshCredits,
+    creditScore, 
+    refreshCredits, 
     selectedDatasets,
     addDatasetToSelection,
     removeDatasetFromSelection,

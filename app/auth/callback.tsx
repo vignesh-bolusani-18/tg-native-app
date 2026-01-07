@@ -144,11 +144,16 @@ export default function AuthCallback() {
             
             console.log("📍 AUTO-SELECTING:", mostRecent.companyName || mostRecent.name);
             
-            // Get company refresh token
+            // ⭐ CRITICAL: Get company refresh token - this is needed for conversation APIs
+            // Wait for this to complete before navigating
             try {
+              console.log("🔐 Getting company refresh token...");
               await getRefreshToken(companyId);
-            } catch (_e) {
-              console.warn("⚠️ No company refresh token");
+              console.log("✅ Company refresh token stored successfully");
+            } catch (refreshTokenError: any) {
+              console.warn("⚠️ Company refresh token failed:", refreshTokenError.message);
+              console.warn("   Will fall back to refresh_token for API calls");
+              // Don't block navigation - getAuthToken will fall back to refresh_token
             }
             
             dispatch(setCurrentCompany({
@@ -164,6 +169,9 @@ export default function AuthCallback() {
           dispatch(loadCompanies([]));
         }
 
+        // ⭐ Mark auth as completed BEFORE navigation
+        await SecureStore.setItemAsync("auth_completed", "true");
+        
         setStatus("Redirecting...");
         
         // 5. Navigate to Vibe/Agent (not tabs)

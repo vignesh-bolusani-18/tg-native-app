@@ -1,213 +1,176 @@
-/**
- * Conversation Management Utilities
- * Follows tg-application pattern: JWT-signed conversation endpoints with ?t= query params
- */
 
-import { apiConfig } from './apiConfig';
-import { generateToken } from './jwtUtils';
+import axios from "axios";
+import { getAuthToken } from "../redux/actions/authActions";
+import { generateToken } from "./jwtUtils";
+import ENV from "./env";
 
-const getHeaders = (token) => {
-  if (!apiConfig.apiKey) {
-    console.warn("⚠️ Warning: API Key is missing in apiConfig. Check your .env file.");
-  }
-  return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`,
-    'x-api-key': apiConfig.apiKey,
-  };
-};
+const BASE = ENV.API_BASE_URL;
 
-/**
- * POST /conversation?t=
- * Create a new conversation with JWT-encoded payload
- */
-export const createConversation = async ({ token, userID, companyID, conversationID, conversation_name = 'New Chat', messageCount = 0, workflowsUsed = [], experiments = [] }) => {
-  try {
-    const timestamp = Date.now();
-    
-    // Build conversation data token payload
-    const conversationDataToken = await generateToken({
-      conversationID,
-      userID,
-      companyID,
-      conversation_name,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-      messageCount,
-      workflowsUsed,
-      experiments,
-    }, token);
+export const createConversation = async (tokenPayload) => {
+    const Token = await getAuthToken();
+    const conversationDataToken = await generateToken(tokenPayload, Token);
 
-    const url = `${apiConfig.apiBaseURL}/conversation?t=${timestamp}`;
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: getHeaders(token),
-      body: JSON.stringify({ conversationDataToken }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to create conversation: ${response.status} ${errorText}`);
+    try {
+        const url = `${BASE}/conversation?t=${Date.now()}`;
+        console.log("🔵 createConversation - URL:", url);
+        console.log("🔵 createConversation - BASE:", BASE);
+        console.log("🔵 createConversation - Payload:", tokenPayload);
+        
+        const response = await axios.post(url, {
+            conversationDataToken: conversationDataToken,
+        }, {
+            headers: {
+                "x-api-key": ENV.API_KEY,
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${Token}`,
+            },
+        });
+        console.log("✅ createConversation - Success:", response.data);
+        return response.data;
+    } catch (error) {
+        console.error("❌ createConversation - Error:", error.message);
+        console.error("❌ createConversation - Status:", error.response?.status);
+        console.error("❌ createConversation - Response data:", error.response?.data);
+        throw error;
     }
+}
 
-    const data = await response.json();
-    return data;
+
+export const getConversationByID = async (tokenPayload) => {
+    const Token = await getAuthToken();
+    const conversationByIdToken = await generateToken(tokenPayload,Token);
+    try{
+        const response = await axios.post(`${BASE}/conversation/get?t=${Date.now()}`, {
+            conversationByIdToken: conversationByIdToken,
+        },{
+            headers: {
+                "x-api-key": ENV.API_KEY,
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${Token}`,
+            },
+        });
+        return response.data;
+    }
+    catch (error) {
+        console.error("Error fetching conversation by ID:", error);
+        throw error;
+    }
+}
+
+export const deleteConversation = async (tokenPayload) => { 
+  const Token = await getAuthToken();
+  const deleteConversationToken = await generateToken(tokenPayload, Token);
+
+  try {
+    const url = `${BASE}/conversation?deleteConversationToken=${deleteConversationToken}&t=${Date.now()}`;
+    console.log("🔵 deleteConversation - URL:", url);
+    console.log("🔵 deleteConversation - BASE:", BASE);
+    console.log("🔵 deleteConversation - Payload:", tokenPayload);
+    
+    const response = await axios.delete(url, {
+      headers: {
+        "x-api-key": ENV.API_KEY,
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${Token}`,
+      },
+    });
+    console.log("✅ deleteConversation - Success:", response.data);
+    return response.data;
   } catch (error) {
-    console.error('Error creating conversation:', error);
+    console.error("❌ deleteConversation - Error:", error.message);
+    console.error("❌ deleteConversation - Status:", error.response?.status);
+    console.error("❌ deleteConversation - Response data:", error.response?.data);
     throw error;
   }
 };
 
-/**
- * DELETE /conversation?deleteConversationToken=...&t=
- * Delete a conversation using JWT-encoded payload
- */
-export const deleteConversation = async ({ token, conversationID, userID, companyID }) => {
-  try {
-    const timestamp = Date.now();
-    
-    // Build delete conversation token payload
-    const deleteConversationToken = await generateToken({
-      conversationID,
-      userID,
-      companyID,
-    }, token);
 
-    const url = `${apiConfig.apiBaseURL}/conversation?deleteConversationToken=${encodeURIComponent(deleteConversationToken)}&t=${timestamp}`;
-    
-    const response = await fetch(url, {
-      method: 'DELETE',
-      headers: getHeaders(token),
-    });
+   export const renameConversation = async (tokenPayload) => {
+    const Token = await getAuthToken();
+    const conversationDataToken = await generateToken(tokenPayload,Token);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to delete conversation: ${response.status} ${errorText}`);
+    try{
+        const url = `${BASE}/renameConversation?t=${Date.now()}`;
+        console.log("🔵 renameConversation - URL:", url);
+        console.log("🔵 renameConversation - API_BASE_URL (BASE):", BASE);
+        console.log("🔵 renameConversation - ENV.API_BASE_URL:", ENV.API_BASE_URL);
+        console.log("🔵 renameConversation - Payload:", tokenPayload);
+        console.log("🔵 renameConversation - Token present:", !!Token);
+        console.log("🔵 renameConversation - API Key present:", !!ENV.API_KEY);
+        
+        const response = await axios.post(url, {
+            conversationDataToken: conversationDataToken,
+        },{
+            headers: {
+                "x-api-key": ENV.API_KEY,
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${Token}`,
+            },
+        });
+        console.log("✅ renameConversation - Success:", response.data);
+        return response.data;
     }
-
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Error deleting conversation:', error);
-    throw error;
-  }
-};
-
-/**
- * POST /renameConversation?t=
- * Rename a conversation using JWT-encoded payload
- */
-export const renameConversation = async ({ token, conversationID, userID, companyID, title }) => {
-  try {
-    const timestamp = Date.now();
-    
-    // Build rename conversation token payload
-    const conversationDataToken = await generateToken({
-      conversationID,
-      userID,
-      companyID,
-      conversation_name: title,
-    }, token);
-
-    const url = `${apiConfig.apiBaseURL}/renameConversation?t=${timestamp}`;
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: getHeaders(token),
-      body: JSON.stringify({ conversationDataToken }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to rename conversation: ${response.status} ${errorText}`);
+    catch (error) {
+        console.error("❌ renameConversation - Error:", error.message);
+        console.error("❌ renameConversation - Status:", error.response?.status);
+        console.error("❌ renameConversation - URL attempted:", `${BASE}/renameConversation?t=${Date.now()}`);
+        console.error("❌ renameConversation - Response data:", error.response?.data);
+        throw error;
     }
+   }
 
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Error renaming conversation:', error);
-    throw error;
-  }
-};
+   export const getAllConversations = async () => {
+      const Token = await getAuthToken();
+      
+      try{
+          const response = await axios.get(`${BASE}/conversations/any?t=${Date.now()}`, {
+              headers: {
+                  "x-api-key": ENV.API_KEY,
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${Token}`,
+              },
+          });
+          return response.data;
+      }
+      catch (error) {
+          console.error("Error fetching all conversations:", error);
+          throw error;
+      }
+   }
 
-/**
- * GET /conversationByCompany?t=&sendHash=true
- * Fetch all conversations for the company from token
- */
-export const getConversationsByCompany = async ({ token }) => {
-  try {
-    const timestamp = Date.now();
-    const url = `${apiConfig.apiBaseURL}/conversationByCompany?t=${timestamp}&sendHash=true`;
-    
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: getHeaders(token),
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to fetch conversations by company: ${response.status} ${errorText}`);
+   export const getConversationsByCompany = async () => {
+    const Token = await getAuthToken();
+
+    try{
+        const response = await axios.get(`${BASE}/conversationByCompany?t=${Date.now()}&sendHash=true`, {
+            headers: {
+                "x-api-key": ENV.API_KEY,
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${Token}`,
+            },
+        });
+        return response.data;
     }
-
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.warn('getConversationsByCompany:', error.message);
-    throw error;
-  }
-};
-
-/**
- * GET /conversationByUser?t=
- * Fetch all conversations for the user from token
- */
-export const getConversations = async ({ token }) => {
-  try {
-    const timestamp = Date.now();
-    const url = `${apiConfig.apiBaseURL}/conversationByUser?t=${timestamp}`;
-    
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: getHeaders(token),
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to fetch conversations: ${response.status} ${errorText}`);
+    catch (error) {
+        console.error("Error fetching conversations by company:", error);
+        throw error;
     }
+   }
 
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Error getting conversations:', error);
-    throw error;
-  }
-};
-
-/**
- * GET /conversations/any?t=
- * Fetch all conversations (any user/company)
- */
-export const getAllConversations = async ({ token }) => {
-  try {
-    const timestamp = Date.now();
-    const url = `${apiConfig.apiBaseURL}/conversations/any?t=${timestamp}`;
-    
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: getHeaders(token),
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to fetch all conversations: ${response.status} ${errorText}`);
+   export const getConversationsByUser = async () => {
+    const Token = await getAuthToken();
+    try{
+        const response = await axios.get(`${BASE}/conversationByUser?t=${Date.now()}`, {
+            headers: {
+                "x-api-key": ENV.API_KEY,
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${Token}`,
+            },
+        });
+        return response.data;
     }
-
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Error getting all conversations:', error);
-    throw error;
-  }
-};
+    catch (error) {
+        console.error("Error fetching conversations by user:", error);
+        throw error;
+    }
+   }

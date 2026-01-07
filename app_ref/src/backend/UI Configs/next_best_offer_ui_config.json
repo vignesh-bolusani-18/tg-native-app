@@ -1,0 +1,197 @@
+{
+  "dataset_config": {
+    "customer_transaction": {
+      "tag": "customer_transaction",
+      "title": "Add Customer Transaction Dataset",
+      "description": "Contains data on customer transactions and purchase behavior.",
+      "dataStepConfig": {
+        "grouping_columns": [
+          "allTags.timestamp_column",
+          "allTags.id_columns",
+          "allTags.ts_id_columns"
+        ],
+        "aggregations": [
+          "allTags.target_column",
+          "allTags.driver_columns",
+          "allTags.dimensions"
+        ],
+        "fillNa": [
+          "allTags.target_column",
+          "allTags.driver_columns",
+          "allTags.dimensions"
+        ]
+      },
+      "tagFieldConfig": {
+        "mandatory_tags": [
+          "allTags.date_format",
+          "allTags.timestamp_column",
+          "allTags.target_column",
+          "allTags.id_columns"
+        ],
+        "optional_tags": [
+          "allTags.driver_columns",
+          "allTags.dimensions",
+          "allTags.ts_id_columns"
+        ]
+      }
+    },
+    "others": {
+      "tag": "others",
+      "title": "Add Other Dataset",
+      "description": "Additional dataset for other marketing-related information.",
+      "dataStepConfig": {
+        "grouping_columns": ["allTags.timestamp_column", "allTags.id_columns"],
+        "aggregations": ["allTags.driver_columns", "allTags.dimensions"],
+        "fillNa": ["allTags.driver_columns", "allTags.dimensions"]
+      },
+      "tagFieldConfig": {
+        "mandatory_tags": ["allTags.id_columns"],
+        "optional_tags": [
+          "allTags.date_format",
+          "allTags.timestamp_column",
+          "allTags.driver_columns",
+          "allTags.dimensions"
+        ]
+      }
+    }
+  },
+  "join_input_data_mapping": {
+    "customer_transaction": {
+      "input_data_path": "etl.input_data",
+      "input_data_cols_path": "etl.input_data_cols"
+    }
+  },
+  "join_groups": [
+    {
+      "label": "Join Datasets",
+      "input_data_path": "etl.input_data",
+      "input_data_cols_path": "etl.input_data_cols",
+      "input_data_tag": "customer_transaction",
+      "join_type": "left",
+      "datasets": ["others"],
+      "join_operation_key": "etl.join_operations"
+    }
+  ],
+  "default_context_bucket": "FD",
+  "default_advance_setting_bucket": "MS",
+  "context_buckets": {
+    "FD": {
+      "title": "Feature Details",
+      "description": "Feature Details Description",
+      "featureGroups": {
+        "prediction_parameters": {
+          "title": "Prediction Parameters",
+          "features": [
+            "allContextFeatures.prediction_start_date",
+            "allContextFeatures.prediction_end_date",
+            "allContextFeatures.activity_period",
+            "allContextFeatures.history_days"
+          ]
+        },
+        "feature_parameters": {
+          "title": "Feature Parameters",
+          "features": [
+            "allContextFeatures.transactional_date_column",
+            "allContextFeatures.transactional_value_columns",
+            "allContextFeatures.days_since_features",
+            "allContextFeatures.max_distribution_cardinality",
+            "allContextFeatures.distribution_feature_set",
+            "allContextFeatures.base_features",
+            "allContextFeatures.base_features_time_cuts",
+            "allContextFeatures.id_profile_features"
+          ]
+        }
+      }
+    }
+  },
+  "advance_setting_buckets": {
+    "MS": {
+      "title": "ML Settings",
+      "description": "ML Settings Description",
+      "isHyperParamTab": false,
+      "featureGroups": {
+        "model_settings": {
+          "title": "Model Settings",
+          "features": [
+            "allAdvancedSettings.model_type",
+            "allAdvancedSettings.model_name",
+            "allAdvancedSettings.model_parameters",
+            "allAdvancedSettings.feature_importance_threshold",
+            "allAdvancedSettings.cross_validation_folds",
+            "allAdvancedSettings.random_state",
+            "allAdvancedSettings.test_size",
+            "allAdvancedSettings.early_stopping_rounds",
+            "allAdvancedSettings.max_iterations"
+          ]
+        },
+        "hyperparameters": {
+          "title": "Hyperparameters",
+          "features": [
+            "allAdvancedSettings.learning_rate",
+            "allAdvancedSettings.max_depth",
+            "allAdvancedSettings.min_child_weight",
+            "allAdvancedSettings.subsample",
+            "allAdvancedSettings.colsample_bytree",
+            "allAdvancedSettings.gamma",
+            "allAdvancedSettings.reg_alpha",
+            "allAdvancedSettings.reg_lambda",
+            "allAdvancedSettings.scale_pos_weight"
+          ]
+        },
+        "model_configuration": {
+          "title": "Model Configuration",
+          "features": [
+            "allAdvancedSettings.objective",
+            "allAdvancedSettings.eval_metric",
+            "allAdvancedSettings.booster",
+            "allAdvancedSettings.tree_method",
+            "allAdvancedSettings.grow_policy",
+            "allAdvancedSettings.max_leaves",
+            "allAdvancedSettings.max_bin",
+            "allAdvancedSettings.min_data_in_leaf",
+            "allAdvancedSettings.min_data_in_bin",
+            "allAdvancedSettings.min_sum_hessian_in_leaf",
+            "allAdvancedSettings.min_sum_hessian_in_bin",
+            "allAdvancedSettings.max_drop",
+            "allAdvancedSettings.skip_drop"
+          ]
+        },
+        "model_specific_parameters": {
+          "title": "Model-Specific Parameters",
+          "features": [
+            "allAdvancedSettings.xgboost_dart_mode",
+            "allAdvancedSettings.xgboost_dart_mode_parameters",
+            "allAdvancedSettings.xgboost_gblinear_mode",
+            "allAdvancedSettings.xgboost_gblinear_mode_parameters",
+            "allAdvancedSettings.xgboost_gbtree_mode",
+            "allAdvancedSettings.xgboost_gbtree_mode_parameters",
+            "allAdvancedSettings.lightgbm_parameters",
+            "allAdvancedSettings.catboost_parameters",
+            "allAdvancedSettings.random_forest_parameters",
+            "allAdvancedSettings.decision_tree_parameters",
+            "allAdvancedSettings.logistic_regression_parameters",
+            "allAdvancedSettings.linear_regression_parameters"
+          ]
+        }
+      }
+    }
+  },
+  "confirm_add_data_trasformation": {
+    "date_": {
+      "path": "etl.transaction_cols.date_",
+      "value": "Script(return loadedDatasets.customer_transaction[0].field_tags.timestamp_column)"
+    },
+    "value_cols": {
+      "path": "etl.transaction_cols.value_cols",
+      "value": "Script(return loadedDatasets.customer_transaction[0].field_tags.target_column)"
+    },
+    "days_since_features": {
+      "path": "etl.transaction_cols.days_since_features",
+      "value": "Script(return loadedDatasets.customer_transaction[0].field_tags.id_columns)"
+    },
+    "base_features": {
+      "path": "etl.transaction_cols.base_features.features",
+      "value": "Script(return loadedDatasets.customer_transaction[0].field_tags.target_column)"
+    }
+  }
+}

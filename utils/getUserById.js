@@ -1,8 +1,9 @@
 // utils/getUserById.js
 // SecureStore functionality moved to jwtUtils
+import { ENV } from './env';
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
-const API_KEY = process.env.EXPO_PUBLIC_API_KEY;
+const API_BASE_URL = ENV.API_BASE_URL;
+const API_KEY = ENV.API_KEY;
 
 // Removed getSecureToken - use processToken from jwtUtils instead
 

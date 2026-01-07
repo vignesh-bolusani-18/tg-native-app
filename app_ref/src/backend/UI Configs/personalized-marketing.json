@@ -1,0 +1,112 @@
+{
+  "UI_CONFIG": {
+    "datasets": {
+      "dataset_groups": {
+        "mandatory_datasets_tags": ["customer-transaction"],
+        "optional_datasets_tags": ["others"]
+      },
+      "show_dataset_group_labels": {},
+      "multi_select_dataset_tags": ["others"],
+      "dataset_info": {
+        "customer-transaction": {
+          "tag": "customer-transaction",
+          "title": "Add Customer Transaction Dataset",
+          "description": "Contains data on customer transactions.",
+          "dataStepConfig": {
+            "grouping_columns": [
+              "timestamp_column",
+              "id_columns",
+              "ts_id_columns"
+            ],
+            "aggregations": ["target_column", "driver_columns", "dimensions"],
+            "fillNa": ["target_column", "driver_columns", "dimensions"]
+          },
+          "tagFieldConfig": {
+            "mandatory_tags": [
+              "date_format",
+              "timestamp_column",
+              "target_column",
+              "id_columns"
+            ],
+            "optional_tags": ["driver_columns", "dimensions", "ts_id_columns"]
+          }
+        },
+        "others": {
+          "tag": "others",
+          "title": "Add Other Dataset",
+          "description": "Additional dataset for other information.",
+          "dataStepConfig": {
+            "grouping_columns": ["timestamp_column", "id_columns"],
+            "aggregations": ["driver_columns", "dimensions"],
+            "fillNa": ["driver_columns", "dimensions"]
+          },
+          "tagFieldConfig": {
+            "mandatory_tags": ["id_columns"],
+            "optional_tags": [
+              "date_format",
+              "timestamp_column",
+              "driver_columns",
+              "dimensions"
+            ]
+          }
+        }
+      }
+    },
+    "join_input_data_mapping": {
+      "customer-transaction": {
+        "input_data_path": "etl.input_data",
+        "input_data_cols_path": "etl.input_data_cols"
+      }
+    },
+    "join_groups": [
+      {
+        "label": "Join Datasets",
+        "input_data_path": "etl.input_data",
+        "input_data_cols_path": "etl.input_data_cols",
+        "input_data_tag": "customer-transaction",
+        "join_type": "left",
+        "datasets": ["others"],
+        "join_operation_key": "etl.join_operations"
+      }
+    ],
+    "default_context_bucket": "FC",
+    "default_advance_setting_bucket": "MS",
+    "context_buckets": "demand-planning",
+    "advance_setting_buckets": "demand-planning"
+  },
+  "Rough": {
+    "FD": {
+      "title": "Feature Details",
+      "description": "Feature Details Description",
+      "featureGroups": {
+        "PP": {
+          "title": "Prediction Parameters",
+          "description": "Prediction Parameters Description",
+          "is_enabled": true,
+          "features": [
+            "pred_st_dt",
+            "pred_end_dt",
+            "activity_end_date",
+            "activity_period",
+            "num_of_history_days"
+          ]
+        },
+        "FP": {
+          "title": "Feature Parameters",
+          "description": "Feature Parameters Description",
+          "is_enabled": true,
+          "features": [
+            "date_",
+            "value_cols",
+            "daysince_features",
+            "max_cardinality",
+            "feature_set",
+            "features",
+            "time_cuts",
+            "id_profile_features"
+          ]
+        }
+      }
+    }
+  }
+}

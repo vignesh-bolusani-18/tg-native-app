@@ -1,30 +1,31 @@
 // D:\TG_REACT_NATIVE_MOBILE_APP\redux\actions\vibeAction.js
 
 import { getExperimentById } from "../../utils/getExperiments";
+import { processToken, verifyConversationsResponse } from "../../utils/jwtUtils";
 import {
-    addConversation,
-    addMessage,
-    addProgressUpdate,
-    clearError,
-    clearProgress,
-    decrementCreditScore,
-    loadConversations,
-    removeConversation,
-    selectConversation,
-    setConnectionStatus,
-    setCreditScore,
-    setError,
-    setExperimentData,
-    setStreamingStatus,
-    updateConversationName,
-    updateLastMessage,
+  addConversation,
+  addMessage,
+  addProgressUpdate,
+  clearError,
+  clearProgress,
+  decrementCreditScore,
+  loadConversations,
+  removeConversation,
+  selectConversation,
+  setConnectionStatus,
+  setCreditScore,
+  setError,
+  setExperimentData,
+  setStreamingStatus,
+  updateConversationName,
+  updateLastMessage,
 } from "../slices/vibeSlice";
+ 
 
 import {
-    createConversation,
-    deleteConversation,
-    getConversations,
-    getConversationsByCompany,
+  createConversation,
+  deleteConversation,
+  getConversationsByCompany,
   renameConversation,
 } from "../../utils/conversations";
 import { getCreditScore, updateCredits } from "../../utils/getAndUpdateCredits";
@@ -127,12 +128,16 @@ export const fetchAndStoreExperimentData =
     try {
       console.log("Fetching experiment data for:", experimentId);
 
+      // Keep signature close to web; our util accepts two args, extra ignored
       const response = await getExperimentById(
         { experimentID: experimentId },
         currentCompany
       );
 
-      const experimentData = await response;
+      // Decode if API returns a JWT; otherwise pass through
+      const experimentData =
+        typeof response === "string" ? await processToken(response) : response;
+
       console.log("Experiment data fetched:", experimentData);
 
       dispatch(setExperimentData({ experimentId, experimentData }));
@@ -221,105 +226,130 @@ export const handleWebSocketMessage = (messageData) => (dispatch, getState) => {
   }
 };
 
-// Track if a load is already in progress to prevent duplicate calls
-let isLoadingConversations = false;
-let lastLoadedCompanyId = null;
-
-export const loadConversationListAction = (userInfo) => async (dispatch, getState) => {
-  // Get current company to check if it changed
-  const currentState = getState();
-  const currentCompanyId = currentState.auth?.currentCompany?.companyID || 
-                           currentState.auth?.currentCompany?.id;
+export const loadConversationListAction = (userInfo, retryCount = 0) => async (dispatch) => {
+  const MAX_RETRIES = 3;
+  const RETRY_DELAY = 1000; // 1 second
   
-  // Reset loading flag if company changed
-  if (lastLoadedCompanyId !== currentCompanyId) {
-    isLoadingConversations = false;
-    lastLoadedCompanyId = currentCompanyId;
-  }
-  
-  // Prevent duplicate concurrent calls
-  if (isLoadingConversations) {
-    console.log("loadConversationList: Already loading, skipping duplicate call");
-    return;
-  }
-  
-  isLoadingConversations = true;
-  console.log("loadConversationList: Starting for company:", currentCompanyId);
+  console.log(`📚 loadConversationList called (attempt ${retryCount + 1}/${MAX_RETRIES + 1})`);
 
   try {
-    // CRITICAL: Use refresh_token_company for company-specific API calls
-    const { getItem } = await import('../../utils/storage');
-    const refreshTokenCompany = await getItem('refresh_token_company');
-    const fallbackToken = getState().auth.userData?.token;
+    const response = await getConversationsByCompany();
     
-    const token = refreshTokenCompany || fallbackToken;
+    // Check if response is valid
+    if (!response) {
+      throw new Error("Empty response from conversation API");
+    }
     
-    if (!token) {
-      console.warn("loadConversationList: No token available");
-      dispatch(loadConversations([]));
-      isLoadingConversations = false;
-      return;
-    }
+    console.log("✅ Got conversations response:", typeof response, Array.isArray(response) ? response.length : "object");
+    
+    // console.log("response: ", response);
 
-    let response;
-    try {
-      response = await getConversationsByCompany({ token });
-    } catch (companyError) {
-      // Log once, not repeatedly
-      console.warn("loadConversationList: API error -", companyError.message);
-      
-      // If 502 or 5xx, just continue without history - backend issue
-      if (companyError.message.includes("502") || companyError.message.includes("500")) {
-        console.warn("Backend unavailable - chat will still work via WebSocket");
-        response = [];
-      }
-      // If unauthorized, try fetching by User
-      else if (companyError.message.includes("401") || companyError.message.includes("authorized")) {
-        try {
-          response = await getConversations({ token });
-        } catch (userError) {
-          console.warn("User conversations also failed:", userError.message);
-          response = [];
-        }
-      } else {
-        response = [];
-      }
-    }
+    // Verify security and get invitation data
+    const verifiedConversations = await verifyConversationsResponse(
+      response,
+      userInfo.userID
+    );
 
-    // The response is now a direct array of conversations (or empty if none)
-    // We no longer need to verify security envelope as per new API spec
-    const conversations = Array.isArray(response) ? response : [];
-
-    // --- HELPER: Safer Date Formatting for React Native ---
+    // console.log("DecodedExperiments:", decodedExperiments);
+    // Function to format date to local format
     const formatDate = (date) => {
-      // If it's a timestamp number
-      if (!isNaN(date)) {
-        const dateObj = new Date(Number(date));
-        // Use standard Intl if available, or simple toLocaleString for safety
-        try {
-            return dateObj.toLocaleString("en-US", {
-                year: "numeric", month: "short", day: "numeric",
-                hour: "numeric", minute: "numeric", second: "numeric", hour12: true
-            }).replace(',', ' at');
-        } catch (_e) {
-            return dateObj.toString();
+      // Handle null/undefined
+      if (!date) return "Unknown";
+      
+      // If it's a valid timestamp (milliseconds since epoch) or parseable number string
+      const numericDate = typeof date === 'number' ? date : Number(date);
+      if (!isNaN(numericDate) && numericDate > 0) {
+        const dateObj = new Date(numericDate);
+        if (!isNaN(dateObj.getTime())) {
+          // Format the date part
+          const datePart = new Intl.DateTimeFormat("en-US", {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+          }).format(dateObj);
+
+          // Format the time part, including seconds
+          const timePart = new Intl.DateTimeFormat("en-US", {
+            hour: "numeric",
+            minute: "numeric",
+            second: "numeric",
+            hour12: true,
+          }).format(dateObj);
+
+          // Combine the date and time parts with "at"
+          return `${datePart}, at ${timePart}`;
         }
       }
 
-      // If it's already a formatted string, return as is or parse
-      return date; 
+      // If the date is already a formatted string, try to format it
+      if (typeof date === 'string') {
+        try {
+          return formatDateString(date);
+        } catch (error) {
+          console.warn("formatDate: Invalid date string:", date, error);
+        }
+      }
+
+      // Return the original value as string if nothing else works
+      return String(date);
     };
 
-    const convertToTimestamp = (dateString) => {
-      if(!dateString) return 0;
-      // Handle "at" replacement for typical formatted strings
-      const cleanDate = dateString.toString().replace(/ at /, " ");
-      const date = new Date(cleanDate);
-      if (isNaN(date.getTime())) return 0;
+    function convertToTimestamp(dateString) {
+      // Handle null/undefined
+      if (!dateString) return 0;
+      
+      // If already a number (timestamp), return it
+      if (typeof dateString === 'number') return dateString;
+      
+      // Create a new Date object from the input date string
+      const date = new Date(String(dateString).replace(/ at /, " "));
+
+      // Check if the date is valid - return 0 instead of throwing to prevent crashes
+      if (isNaN(date.getTime())) {
+        console.warn("convertToTimestamp: Invalid date format:", dateString);
+        return 0; // Return 0 for invalid dates so sorting still works
+      }
+
+      // Return the timestamp in milliseconds
       return date.getTime();
+    }
+
+    // Function to convert full month names to abbreviated month names
+    const formatDateString = (dateString) => {
+      const monthMap = {
+        January: "Jan",
+        February: "Feb",
+        March: "Mar",
+        April: "Apr",
+        May: "May",
+        June: "Jun",
+        July: "Jul",
+        August: "Aug",
+        September: "Sep",
+        October: "Oct",
+        November: "Nov",
+        December: "Dec",
+      };
+
+      // Use a regular expression to match the full date format
+      const regex =
+        /(\w+) (\d{1,2}), (\d{4}) at (\d{1,2}:\d{2}:\d{2} [APM]{2})/;
+      const match = dateString.match(regex);
+
+      if (match) {
+        const fullMonth = match[1];
+        const day = match[2];
+        const year = match[3];
+        const time = match[4];
+
+        const abbreviatedMonth = monthMap[fullMonth];
+        return `${abbreviatedMonth} ${day}, ${year} at ${time}`;
+      }
+
+      return dateString;
     };
 
-    const updatedConversations = conversations.map((conversation) => ({
+    const updatedConversations = verifiedConversations.map((conversation) => ({
       ...conversation,
       updatedAt: formatDate(conversation.updatedAt),
       createdAt: formatDate(conversation.createdAt),
@@ -339,58 +369,62 @@ export const loadConversationListAction = (userInfo) => async (dispatch, getStat
       (conversation) => !conversation.inTrash
     );
 
+    console.log(`✅ Loaded ${activeConversation.length} conversations from backend`);
     dispatch(loadConversations(activeConversation));
-    console.log("loadConversationList: Loaded", activeConversation.length, "conversations");
   } catch (error) {
-    console.error("loadConversationList: Error -", error.message);
-    dispatch(setError(error.message));
-  } finally {
-    isLoadingConversations = false;
+    console.error("❌ loadConversationListAction Error:", error.message);
+    
+    // ⭐ RETRY LOGIC: If this was a network/auth error and we haven't exhausted retries
+    if (retryCount < MAX_RETRIES) {
+      const isRetryable = 
+        error.message?.includes("Network") ||
+        error.message?.includes("timeout") ||
+        error.message?.includes("401") ||
+        error.message?.includes("403") ||
+        error.message?.includes("Empty response") ||
+        error.message?.includes("No tokens");
+      
+      if (isRetryable) {
+        console.log(`⏳ Retrying in ${RETRY_DELAY}ms...`);
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * (retryCount + 1))); // Exponential backoff
+        return dispatch(loadConversationListAction(userInfo, retryCount + 1));
+      }
+    }
+    
+    // Only set error if all retries exhausted
+    dispatch(setError(`Failed to load conversations: ${error.message}`));
   }
 };
 
-export const addNewConversationAction = (tokenPayload) => async (dispatch, getState) => {
+export const addNewConversationAction = (tokenPayload) => async (dispatch) => {
   try {
     console.log(
       "addNewConversationAction: Adding new conversation:",
       tokenPayload
     );
 
-    // CRITICAL: Use refresh_token_company for company-specific API calls
-    const { getItem } = await import('../../utils/storage');
-    const refreshTokenCompany = await getItem('refresh_token_company');
-    const fallbackToken = getState().auth.userData?.token;
-    const token = refreshTokenCompany || fallbackToken;
-    
-    console.log("addNewConversationAction: Using token type:", refreshTokenCompany ? "refresh_token_company ✅" : "fallback ⚠️");
-
-    // Call API to create conversation in backend with full JWT payload
-    const response = await createConversation({
-      token,
-      userID: tokenPayload.userID,
-      companyID: tokenPayload.companyID,
-      conversationID: tokenPayload.conversationID,
-      conversation_name: tokenPayload.conversation_name || 'New Chat',
-      messageCount: tokenPayload.messageCount || 0,
-      workflowsUsed: tokenPayload.workflowsUsed || [],
-      experiments: tokenPayload.experiments || [],
-    });
+    // Call API to create conversation in backend
+    const response = await createConversation(tokenPayload);
 
     console.log("addNewConversationAction: API response:", response);
 
+    // After a successful backend create, add the conversation to the local sidebar list.
+    // Some backends return varied shapes; prefer server-provided metadata if available,
+    // otherwise fall back to the tokenPayload we sent.
     try {
       const convoEntry = {
         conversationID: tokenPayload.conversationID,
-        conversation_name: tokenPayload.conversation_name,
-        createdAt: tokenPayload.createdAt,
-        updatedAt: tokenPayload.updatedAt,
+        conversation_name:tokenPayload.conversation_name,
+        createdAt:  tokenPayload.createdAt,
+        updatedAt:  tokenPayload.updatedAt,
         messageCount: tokenPayload.messageCount,
+    
       };
 
       dispatch(addConversation(convoEntry));
-      console.log("addNewConversationAction: Conversation added locally");
+      console.log("addNewConversationAction: Conversation added locally after backend success", convoEntry);
     } catch (err) {
-      console.error("addNewConversationAction: Failed to add locally:", err);
+      console.error("addNewConversationAction: Failed to add conversation locally:", err);
       dispatch(setError(err.message || String(err)));
       throw err;
     }
@@ -401,7 +435,9 @@ export const addNewConversationAction = (tokenPayload) => async (dispatch, getSt
       "addNewConversationAction: Error creating conversation:",
       error.message
     );
+    // Log detailed error info for debugging 500 errors
     if (error.response) {
+      console.error("Server error status:", error.response.status);
       console.error("Server error data:", error.response.data);
     }
     dispatch(setError(error.message));
@@ -412,16 +448,23 @@ export const addNewConversationAction = (tokenPayload) => async (dispatch, getSt
 export const addConversationFromSidebarAction =
   ({ conversationID, conversationPath }) =>
   async (dispatch) => {
-    console.log("addConversationFromSidebarAction:", conversationID);
+    console.log(
+      "addConversationFromSidebarAction: Adding conversation with ID:",
+      conversationID
+    );
     try {
       const response = await fetchJsonFromS3(conversationPath);
 
-      console.log("addConversationFromSidebarAction: Fetched data:", response);
+      console.log(
+        "addConversationFromSidebarAction: Fetched conversation data:",
+        response
+      );
 
+      // Ensure we dispatch the selectConversation action with a single payload object
       dispatch(selectConversation({ conversationID, response }));
     } catch (error) {
       console.error(
-        "addConversationFromSidebarAction: Error:",
+        "addConversationFromSidebarAction: Error fetching conversation data:",
         error?.message || error
       );
       dispatch(setError(error?.message || String(error)));
@@ -431,67 +474,49 @@ export const addConversationFromSidebarAction =
 export const renameConversationAction =
   (tokenPayload) => async (dispatch, getState) => {
     try {
-      console.log("renameConversationAction: Renaming conversation:", tokenPayload);
-
-      // CRITICAL: Use refresh_token_company
-      const { getItem } = await import('../../utils/storage');
-      const refreshTokenCompany = await getItem('refresh_token_company');
-      const fallbackToken = getState().auth.userData?.token;
-      const token = refreshTokenCompany || fallbackToken;
-      
-      console.log("renameConversationAction: Using token type:", refreshTokenCompany ? "refresh_token_company ✅" : "fallback ⚠️");
-      
-      // Call API to rename conversation with JWT-signed payload
-      const response = await renameConversation({
-        token,
-        conversationID: tokenPayload.conversationID,
-        userID: tokenPayload.userID,
-        companyID: tokenPayload.companyID,
-        title: tokenPayload.newConversationName || tokenPayload.title,
-      });
-      
+      console.log(
+        "renameConversationAction: Renaming conversation with payload:",
+        tokenPayload
+      );
+      const response = await renameConversation(tokenPayload);
       console.log("renameConversationAction: API response:", response);
-      
-      // Update Redux state with new name
       dispatch(
         updateConversationName({
           conversationID: tokenPayload.conversationID,
-          newConversationName: tokenPayload.newConversationName || tokenPayload.title,
+          newConversationName: tokenPayload.newConversationName,
         })
       );
-      
       return response;
     } catch (error) {
-      console.error("renameConversationAction Error:", error.message);
+      console.error(
+        "renameConversationAction: Error renaming conversation:",
+        error.message
+      );
       dispatch(setError(error.message));
       throw error;
     }
   };
 
-export const deleteConversationAction = (tokenPayload) => async (dispatch, getState) => {
+export const deleteConversationAction = (tokenPayload) => async (dispatch) => {
   try {
-    console.log("deleteConversationAction:", tokenPayload);
-    
-    // CRITICAL: Use refresh_token_company
-    const { getItem } = await import('../../utils/storage');
-    const refreshTokenCompany = await getItem('refresh_token_company');
-    const fallbackToken = getState().auth.userData?.token;
-    const token = refreshTokenCompany || fallbackToken;
-    
-    console.log("deleteConversationAction: Using token type:", refreshTokenCompany ? "refresh_token_company ✅" : "fallback ⚠️");
-    
-    const response = await deleteConversation({
-      token,
-      conversationID: tokenPayload.conversationID,
-      userID: tokenPayload.userID,
-      companyID: tokenPayload.companyID,
-    });
+    console.log(
+      "deleteConversationAction: Deleting conversation with payload:",
+      tokenPayload
+    );
+
+    const response = await deleteConversation(tokenPayload);
+
     console.log("deleteConversationAction: API response:", response);
+
     dispatch(removeConversation(tokenPayload.conversationID));
     return response;
   } catch (error) {
-    console.error("deleteConversationAction Error:", error.message);
+    console.error(
+      "deleteConversationAction: Error deleting conversation:",
+      error.message
+    );
     dispatch(setError(error.message));
     throw error;
   }
 };
+

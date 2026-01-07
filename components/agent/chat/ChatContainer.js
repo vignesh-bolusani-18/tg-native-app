@@ -4,6 +4,10 @@ import { FlatList, Image, Text, View } from "react-native";
 
 // Hooks
 import { useVibe } from "../../../hooks/useVibe";
+import useAuth from "../../../hooks/useAuth";
+
+// Utils
+import { uploadJsonToS3 } from "../../../utils/s3Utils";
 
 // Components
 import AIMessage from "./AIMessage";
@@ -16,27 +20,69 @@ const TGIcon = require("../../../assets/images/icon.png");
 const ChatContainer = () => {
   // const theme = useTheme();
   const flatListRef = useRef(null);
+  const { currentCompany } = useAuth();
 
   const {
-    messages, // From Redux via useVibe
+    currentMessages, // Use currentMessages from current conversation (not legacy messages)
     isStreaming,
     currentProgress,
     processingStepText,
     isWaitingForAI,
     currentConversationId,
+    currentConversation,
   } = useVibe();
   
   // Debug logging - only log on significant state changes (commented out for production)
-  // console.log('[ChatContainer] Render:', { messageCount: messages.length, isStreaming, isWaitingForAI });
+  // console.log('[ChatContainer] Render:', { messageCount: currentMessages.length, isStreaming, isWaitingForAI });
 
   // Scroll to bottom on new messages or streaming
   useEffect(() => {
-    if (messages.length > 0) {
+    if (currentMessages.length > 0) {
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     }
-  }, [messages.length, isStreaming, currentConversationId]);
+  }, [currentMessages.length, isStreaming, currentConversationId]);
+
+  // ⭐ MATCHES app_ref: Save conversation to S3 when messages change
+  useEffect(() => {
+    // Debug logging
+    console.log("💾 [ChatContainer] Save effect triggered:", {
+      hasCompany: !!currentCompany?.companyName,
+      companyName: currentCompany?.companyName,
+      companyID: currentCompany?.companyID,
+      conversationId: currentConversationId,
+      messageCount: currentMessages?.length,
+    });
+
+    if (!currentCompany?.companyName || !currentCompany?.companyID || !currentConversationId) {
+      console.log("💾 [ChatContainer] Skipping save - missing company or conversation ID");
+      return;
+    }
+    
+    // Don't save empty conversations
+    if (!currentMessages || currentMessages.length === 0) {
+      console.log("💾 [ChatContainer] Skipping save - no messages");
+      return;
+    }
+
+    const conversationPath = `accounts/${currentCompany.companyName}_${currentCompany.companyID}/conversations/${currentConversationId}/conversation_state.json`;
+    console.log("💾 [ChatContainer] Saving to S3:", conversationPath);
+    
+    // Save the current conversation state to S3
+    uploadJsonToS3(conversationPath, currentConversation)
+      .then((result) => {
+        if (result) {
+          console.log("✅ [ChatContainer] Saved to S3 successfully");
+        } else {
+          console.warn("⚠️ [ChatContainer] S3 save returned null");
+        }
+      })
+      .catch((err) => {
+        console.error("❌ [ChatContainer] S3 save error:", err);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentMessages]);
 
   // Combine messages with a "footer" for streaming state if needed
   // Note: FlatList ListFooterComponent is better for this in RN
@@ -58,7 +104,7 @@ const ChatContainer = () => {
     <View style={{ flex: 1, backgroundColor: 'white' }}>
       <FlatList
         ref={flatListRef}
-        data={messages}
+        data={currentMessages}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
         contentContainerStyle={{ 

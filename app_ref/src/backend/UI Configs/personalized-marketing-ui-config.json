@@ -1,0 +1,1067 @@
+{
+  "datasets": {
+    "dataset_groups": {
+      "mandatory_datasets_tags": ["customer_transaction"],
+      "optional_datasets_tags": ["others"]
+    },
+    "show_dataset_group_labels": {},
+    "multi_select_dataset_tags": ["others"],
+    "dataset_info": {
+      "customer_transaction": {
+        "tag": "customer_transaction",
+        "title": "Add Customer Transaction Dataset",
+        "description": "Contains data on customer transactions and purchase behavior.",
+        "dataStepConfig": {
+          "grouping_columns": [
+            {
+              "label": "Date",
+              "isMultiSelect": false,
+              "inputType": "AutoComplete",
+              "path": "field_tags.timestamp_column",
+              "showLabel": true,
+              "xs": 12,
+              "md": 6
+            },
+            {
+              "label": "Customer ID",
+              "isMultiSelect": true,
+              "inputType": "AutoComplete",
+              "path": "field_tags.id_columns",
+              "showLabel": true,
+              "xs": 12,
+              "md": 6
+            },
+            {
+              "label": "Granularity",
+              "isMultiSelect": true,
+              "inputType": "AutoComplete",
+              "path": "field_tags.ts_id_columns",
+              "showLabel": true,
+              "xs": 12,
+              "md": 6
+            }
+          ],
+          "aggregations": [
+            {
+              "label": "Target",
+              "isMultiSelect": false,
+              "inputType": "AutoComplete",
+              "path": "field_tags.target_column",
+              "showLabel": true,
+              "xs": 12,
+              "md": 6,
+              "default_aggregate_option": "sum",
+              "aggregate_disabled": false,
+              "default_fillNa_option": "0",
+              "fillNa_disabled": false,
+              "in_aggregation": true
+            },
+            {
+              "label": "Driver Columns",
+              "isMultiSelect": true,
+              "inputType": "AutoComplete",
+              "path": "field_tags.driver_columns",
+              "showLabel": true,
+              "xs": 12,
+              "md": 6,
+              "default_aggregate_option": "mean",
+              "aggregate_disabled": false,
+              "default_fillNa_option": "None",
+              "fillNa_disabled": false,
+              "in_aggregation": true
+            },
+            {
+              "label": "Other Interesting Dimensions",
+              "isMultiSelect": true,
+              "inputType": "AutoComplete",
+              "path": "field_tags.dimensions",
+              "showLabel": true,
+              "xs": 12,
+              "md": 6,
+              "default_aggregate_option": "max",
+              "aggregate_disabled": false,
+              "default_fillNa_option": "None",
+              "fillNa_disabled": false,
+              "in_aggregation": false
+            }
+          ],
+          "fillNa": [
+            {
+              "label": "Target",
+              "isMultiSelect": false,
+              "inputType": "AutoComplete",
+              "path": "field_tags.target_column",
+              "showLabel": true,
+              "xs": 12,
+              "md": 6,
+              "default_aggregate_option": "sum",
+              "aggregate_disabled": false,
+              "default_fillNa_option": "0",
+              "fillNa_disabled": false,
+              "in_aggregation": true
+            },
+            {
+              "label": "Driver Columns",
+              "isMultiSelect": true,
+              "inputType": "AutoComplete",
+              "path": "field_tags.driver_columns",
+              "showLabel": true,
+              "xs": 12,
+              "md": 6,
+              "default_aggregate_option": "mean",
+              "aggregate_disabled": false,
+              "default_fillNa_option": "None",
+              "fillNa_disabled": false,
+              "in_aggregation": true
+            },
+            {
+              "label": "Other Interesting Dimensions",
+              "isMultiSelect": true,
+              "inputType": "AutoComplete",
+              "path": "field_tags.dimensions",
+              "showLabel": true,
+              "xs": 12,
+              "md": 6,
+              "default_aggregate_option": "max",
+              "aggregate_disabled": false,
+              "default_fillNa_option": "None",
+              "fillNa_disabled": false,
+              "in_aggregation": false
+            }
+          ]
+        },
+        "tagFieldConfig": {
+          "mandatory_tags": [
+            {
+              "label": "Date Format",
+              "isMultiSelect": false,
+              "inputType": "AutoComplete",
+              "path": "field_tags.date_format",
+              "showLabel": true,
+              "xs": 12,
+              "md": 6
+            },
+            {
+              "label": "Date",
+              "isMultiSelect": false,
+              "inputType": "AutoComplete",
+              "path": "field_tags.timestamp_column",
+              "showLabel": true,
+              "xs": 12,
+              "md": 6
+            },
+            {
+              "label": "Target",
+              "isMultiSelect": false,
+              "inputType": "AutoComplete",
+              "path": "field_tags.target_column",
+              "showLabel": true,
+              "xs": 12,
+              "md": 6,
+              "default_aggregate_option": "sum",
+              "aggregate_disabled": false,
+              "default_fillNa_option": "0",
+              "fillNa_disabled": false,
+              "in_aggregation": true
+            },
+            {
+              "label": "Customer ID",
+              "isMultiSelect": true,
+              "inputType": "AutoComplete",
+              "path": "field_tags.id_columns",
+              "showLabel": true,
+              "xs": 12,
+              "md": 6
+            }
+          ],
+          "optional_tags": [
+            {
+              "label": "Driver Columns",
+              "isMultiSelect": true,
+              "inputType": "AutoComplete",
+              "path": "field_tags.driver_columns",
+              "showLabel": true,
+              "xs": 12,
+              "md": 6,
+              "default_aggregate_option": "mean",
+              "aggregate_disabled": false,
+              "default_fillNa_option": "None",
+              "fillNa_disabled": false,
+              "in_aggregation": true
+            },
+            {
+              "label": "Other Interesting Dimensions",
+              "isMultiSelect": true,
+              "inputType": "AutoComplete",
+              "path": "field_tags.dimensions",
+              "showLabel": true,
+              "xs": 12,
+              "md": 6,
+              "default_aggregate_option": "max",
+              "aggregate_disabled": false,
+              "default_fillNa_option": "None",
+              "fillNa_disabled": false,
+              "in_aggregation": false
+            },
+            {
+              "label": "Granularity",
+              "isMultiSelect": true,
+              "inputType": "AutoComplete",
+              "path": "field_tags.ts_id_columns",
+              "showLabel": true,
+              "xs": 12,
+              "md": 6
+            }
+          ]
+        }
+      },
+      "others": {
+        "tag": "others",
+        "title": "Add Other Dataset",
+        "description": "Additional dataset for other marketing-related information.",
+        "dataStepConfig": {
+          "grouping_columns": [
+            {
+              "label": "Date",
+              "isMultiSelect": false,
+              "inputType": "AutoComplete",
+              "path": "field_tags.timestamp_column",
+              "showLabel": true,
+              "xs": 12,
+              "md": 6
+            },
+            {
+              "label": "Customer ID",
+              "isMultiSelect": true,
+              "inputType": "AutoComplete",
+              "path": "field_tags.id_columns",
+              "showLabel": true,
+              "xs": 12,
+              "md": 6
+            }
+          ],
+          "aggregations": [
+            {
+              "label": "Driver Columns",
+              "isMultiSelect": true,
+              "inputType": "AutoComplete",
+              "path": "field_tags.driver_columns",
+              "showLabel": true,
+              "xs": 12,
+              "md": 6,
+              "default_aggregate_option": "mean",
+              "aggregate_disabled": false,
+              "default_fillNa_option": "None",
+              "fillNa_disabled": false,
+              "in_aggregation": true
+            },
+            {
+              "label": "Other Interesting Dimensions",
+              "isMultiSelect": true,
+              "inputType": "AutoComplete",
+              "path": "field_tags.dimensions",
+              "showLabel": true,
+              "xs": 12,
+              "md": 6,
+              "default_aggregate_option": "max",
+              "aggregate_disabled": false,
+              "default_fillNa_option": "None",
+              "fillNa_disabled": false,
+              "in_aggregation": false
+            }
+          ],
+          "fillNa": [
+            {
+              "label": "Driver Columns",
+              "isMultiSelect": true,
+              "inputType": "AutoComplete",
+              "path": "field_tags.driver_columns",
+              "showLabel": true,
+              "xs": 12,
+              "md": 6,
+              "default_aggregate_option": "mean",
+              "aggregate_disabled": false,
+              "default_fillNa_option": "None",
+              "fillNa_disabled": false,
+              "in_aggregation": true
+            },
+            {
+              "label": "Other Interesting Dimensions",
+              "isMultiSelect": true,
+              "inputType": "AutoComplete",
+              "path": "field_tags.dimensions",
+              "showLabel": true,
+              "xs": 12,
+              "md": 6,
+              "default_aggregate_option": "max",
+              "aggregate_disabled": false,
+              "default_fillNa_option": "None",
+              "fillNa_disabled": false,
+              "in_aggregation": false
+            }
+          ]
+        },
+        "tagFieldConfig": {
+          "mandatory_tags": [
+            {
+              "label": "Customer ID",
+              "isMultiSelect": true,
+              "inputType": "AutoComplete",
+              "path": "field_tags.id_columns",
+              "showLabel": true,
+              "xs": 12,
+              "md": 6
+            }
+          ],
+          "optional_tags": [
+            {
+              "label": "Date Format",
+              "isMultiSelect": false,
+              "inputType": "AutoComplete",
+              "path": "field_tags.date_format",
+              "showLabel": true,
+              "xs": 12,
+              "md": 6
+            },
+            {
+              "label": "Date",
+              "isMultiSelect": false,
+              "inputType": "AutoComplete",
+              "path": "field_tags.timestamp_column",
+              "showLabel": true,
+              "xs": 12,
+              "md": 6
+            },
+            {
+              "label": "Driver Columns",
+              "isMultiSelect": true,
+              "inputType": "AutoComplete",
+              "path": "field_tags.driver_columns",
+              "showLabel": true,
+              "xs": 12,
+              "md": 6,
+              "default_aggregate_option": "mean",
+              "aggregate_disabled": false,
+              "default_fillNa_option": "None",
+              "fillNa_disabled": false,
+              "in_aggregation": true
+            },
+            {
+              "label": "Other Interesting Dimensions",
+              "isMultiSelect": true,
+              "inputType": "AutoComplete",
+              "path": "field_tags.dimensions",
+              "showLabel": true,
+              "xs": 12,
+              "md": 6,
+              "default_aggregate_option": "max",
+              "aggregate_disabled": false,
+              "default_fillNa_option": "None",
+              "fillNa_disabled": false,
+              "in_aggregation": false
+            }
+          ]
+        }
+      }
+    }
+  },
+  "join_input_data_mapping": {
+    "customer_transaction": {
+      "input_data_path": "etl.input_data",
+      "input_data_cols_path": "etl.input_data_cols"
+    }
+  },
+  "join_groups": [
+    {
+      "label": "Join Datasets",
+      "input_data_path": "etl.input_data",
+      "input_data_cols_path": "etl.input_data_cols",
+      "input_data_tag": "customer_transaction",
+      "join_type": "left",
+      "datasets": ["others"],
+      "join_operation_key": "etl.join_operations"
+    }
+  ],
+  "default_context_bucket": "FD",
+  "default_advance_setting_bucket": "MS",
+  "context_buckets": {
+    "FD": {
+      "title": "Feature Details",
+      "description": "Feature Details Description",
+      "featureGroups": {
+        "PP": {
+          "title": "Prediction Parameters",
+          "description": "Prediction Parameters Description",
+          "is_enabled": true,
+          "features": [
+            {
+              "component": "DatePicker",
+              "target": "context",
+              "is_enabled": true,
+              "label": "Prediction Start Date",
+              "path": "etl.pred_st_dt",
+              "showLabel": true,
+              "required": false,
+              "xs": 6,
+              "md": 4
+            },
+            {
+              "component": "DatePicker",
+              "target": "context",
+              "is_enabled": true,
+              "label": "Prediction End Date",
+              "path": "etl.pred_end_dt",
+              "showLabel": true,
+              "required": false,
+              "xs": 6,
+              "md": 4
+            },
+            {
+              "component": "Counter",
+              "target": "context",
+              "is_enabled": true,
+              "showLabel": true,
+              "placeholder": "Set your activity days",
+              "label": "Activity Period (Days)",
+              "maxRange": 5000,
+              "minRange": 0,
+              "path": "etl.activity_period",
+              "xs": 6,
+              "md": 4
+            },
+            {
+              "component": "Counter",
+              "target": "context",
+              "is_enabled": true,
+              "showLabel": true,
+              "placeholder": "Set your history days",
+              "label": "Number of History Days",
+              "maxRange": 5000,
+              "minRange": 0,
+              "path": "etl.num_of_history_days",
+              "xs": 6,
+              "md": 4
+            }
+          ]
+        },
+        "FP": {
+          "title": "Feature Parameters",
+          "description": "Feature Parameters Description",
+          "is_enabled": true,
+          "features": [
+            {
+              "component": "AutoComplete",
+              "target": "context",
+              "is_enabled": true,
+              "showLabel": true,
+              "placeholder": "Select transactional date column",
+              "label": "Transactional Date Column",
+              "isMultiSelect": false,
+              "values": "taggedColumns",
+              "path": "etl.transactional_cols.date_",
+              "xs": 12,
+              "md": 6
+            },
+            {
+              "component": "AutoComplete",
+              "target": "context",
+              "is_enabled": true,
+              "showLabel": true,
+              "placeholder": "Select transactional value columns",
+              "label": "Transactional Value Columns",
+              "isMultiSelect": true,
+              "values": "taggedColumns",
+              "path": "etl.transactional_cols.value_cols",
+              "xs": 12,
+              "md": 6
+            },
+            {
+              "component": "AutoComplete",
+              "target": "context",
+              "is_enabled": true,
+              "showLabel": true,
+              "placeholder": "Select days since features",
+              "label": "Days Since Features",
+              "isMultiSelect": true,
+              "values": "taggedColumns",
+              "path": "etl.daysince_features",
+              "xs": 12,
+              "md": 6
+            },
+            {
+              "component": "Counter",
+              "target": "context",
+              "is_enabled": true,
+              "showLabel": true,
+              "placeholder": "Set max distribution cardinality",
+              "label": "Maximum Distribution Cardinality",
+              "maxRange": 1000,
+              "minRange": 1,
+              "path": "etl.distribution_features.max_cardinality",
+              "xs": 6,
+              "md": 4
+            },
+            {
+              "component": "AutoComplete",
+              "target": "context",
+              "is_enabled": true,
+              "showLabel": true,
+              "placeholder": "Select distribution feature set",
+              "label": "Distribution Feature Set",
+              "isMultiSelect": true,
+              "values": "taggedColumns",
+              "path": "etl.distribution_features.feature_set",
+              "xs": 12,
+              "md": 6
+            },
+            {
+              "component": "AutoComplete",
+              "target": "context",
+              "is_enabled": true,
+              "showLabel": true,
+              "placeholder": "Select base features",
+              "label": "Base Features",
+              "isMultiSelect": true,
+              "values": "taggedColumns",
+              "path": "etl.base_features.features",
+              "xs": 12,
+              "md": 6
+            },
+            {
+              "component": "AutoComplete",
+              "target": "context",
+              "is_enabled": true,
+              "showLabel": true,
+              "placeholder": "Set base features time cuts",
+              "label": "Base Features Time Cuts",
+              "isMultiSelect": true,
+              "values": ["7", "14", "30", "60", "90"],
+              "path": "etl.base_features.time_cuts",
+              "xs": 12,
+              "md": 6
+            },
+            {
+              "component": "AutoComplete",
+              "target": "context",
+              "is_enabled": true,
+              "showLabel": true,
+              "placeholder": "Select ID profile features",
+              "label": "ID Profile Features",
+              "isMultiSelect": true,
+              "values": "taggedColumns",
+              "path": "etl.id_profile_features",
+              "xs": 12,
+              "md": 6
+            }
+          ]
+        }
+      }
+    }
+  },
+  "advance_setting_buckets": {
+    "MS": {
+      "title": "ML Settings",
+      "description": "ML Settings Description",
+      "isHyperParamTab": false,
+      "featureGroups": {
+        "MLA": {
+          "title": "Model Setting",
+          "description": "Advanced model parameters like model selection and feature selection",
+          "btnTitle": "Confirm",
+          "isArray": false,
+          "isHyperParam": false,
+          "features": [
+            {
+              "label": "Cluster using ABC-XYZ classification?",
+              "type": "Check",
+              "target": "config",
+              "path": "feature_engg.cluster_abc_xyz",
+              "direction": "column",
+              "xs": 12,
+              "md": 2.75
+            },
+            {
+              "label": "Turn On time-based seasonality?",
+              "type": "Check",
+              "target": "config",
+              "path": "feature_engg.time_seasonality",
+              "direction": "column",
+              "xs": 12,
+              "md": 2.5
+            },
+            {
+              "label": "Select Groups For Data Segmentation",
+              "isMultiSelect": true,
+              "type": "AutoComplete",
+              "target": "config",
+              "placeholder": "Select",
+              "path": "feature_engg.groups[0].group_id_columns",
+              "showLabel": true,
+              "xs": 12,
+              "md": 4,
+              "values": "dimensionOptions"
+            },
+            {
+              "label": "Select Models For Run",
+              "isMultiSelect": true,
+              "type": "AutoComplete",
+              "target": "config",
+              "placeholder": "Select",
+              "path": "training.groups.cluster.model_names",
+              "showLabel": true,
+              "xs": 12,
+              "md": 5,
+              "values": [
+                "Lgbm",
+                "Xgboost",
+                "Xgblinear",
+                "RandomForest",
+                "MLP",
+                "LSTM",
+                "GRU"
+              ]
+            }
+          ]
+        },
+        "AFS": {
+            "title": "Feature Engineering Setting",
+            "description": "Advanced model parameters like model selection and feature selection",
+            "btnTitle": "Confirm",
+            "isArray": false,
+            "isHyperParam": false,
+            "is_enabled": true,
+          "features": [
+            {
+              "label": "Select Feature Types to be created",
+              "isMultiSelect": true,
+              "type": "AutoComplete",
+              "target": "config",
+              "placeholder": "Type here....",
+              "path": "feature_engg.feature_types",
+              "showLabel": true,
+              "xs": 12,
+              "md": 12,
+              "values": [
+                "regressor",
+                "target_encoded",
+                "label_encoded",
+                "text_encoded",
+                "holiday",
+                "datetime",
+                "sinusoidal",
+                "offset",
+                "lagged",
+                "driver",
+                "exogenous_features"
+              ]
+            },
+            {
+              "label": "Create gap",
+              "type": "Check",
+              "target": "config",
+              "path": "feature_engg.offset_params.create_gap",
+              "direction": "column",
+              "xs": 12,
+              "md": 2
+            },
+            {
+              "label": "Driver Offset columns",
+              "isMultiSelect": true,
+              "type": "AutoComplete",
+              "target": "config",
+              "placeholder": "Select the drivers whose offset should be created",
+              "path": "feature_engg.driver_offset_cols",
+              "showLabel": true,
+              "xs": 12,
+              "md": 3,
+              "values": "CONFIG.data.driver_columns"
+            }
+          ]
+        },
+        "MLO": {
+          "title": "MLOps Settings",
+          "description": "Configure MLOps Settings like instance size",
+          "btnTitle": "Confirm",
+          "isArray": false,
+          "isHyperParam": false,
+          "features": [
+            {
+              "label": "Instance Size",
+              "type": "AutoComplete",
+              "target": "config",
+              "placeholder": "Select instance size",
+              "path": "mlops.instance_size",
+              "showLabel": true,
+              "xs": 12,
+              "md": 6,
+              "isMultiSelect": false,
+              "values": ["small", "medium", "large", "xlarge"]
+            }
+          ]
+        }
+      }
+    },
+    "AS": {
+      "title": "Adjustment Settings",
+      "description": "Adjustment Settings Description",
+      "isHyperParamTab": false,
+      "featureGroups": {
+        "APE": {
+          "title": "Add Planner Enrichment",
+          "description": "Configure planner enrichments",
+          "btnTitle": "Add Enrichment",
+          "isArray": true,
+          "arrayName": "enrichment_bydate",
+          "isHyperParam": false,
+          "features": [
+            {
+              "label": "Enrichment Operation Name",
+              "type": "TextInput",
+              "target": "config",
+              "placeholder": "Enter operation name",
+              "path": "adjustments.enrichment_bydate.enrichment_operation_name",
+              "showLabel": true,
+              "xs": 12,
+              "md": 6
+            },
+            {
+              "label": "Select Dimension",
+              "type": "AutoComplete",
+              "target": "config",
+              "placeholder": "Select dimension",
+              "path": "adjustments.enrichment_bydate.enrichment_select_dimension",
+              "showLabel": true,
+              "xs": 12,
+              "md": 6,
+              "isMultiSelect": false,
+              "values": "dimensionOptions"
+            }
+          ]
+        },
+        "APA": {
+          "title": "Add Planner Adjustments",
+          "description": "Create features to adjust historical data gaps",
+          "btnTitle": "Add Adjustment",
+          "isArray": true,
+          "arrayName": "operations",
+          "isHyperParam": false,
+          "features": [
+            {
+              "label": "Operation Name",
+              "type": "TextInput",
+              "target": "config",
+              "placeholder": "Enter operation name",
+              "path": "adjustments.operations.operation_name",
+              "showLabel": true,
+              "xs": 12,
+              "md": 6
+            },
+            {
+              "label": "Adjustment Type",
+              "type": "AutoComplete",
+              "target": "config",
+              "placeholder": "Select adjustment type",
+              "path": "adjustments.operations.adjustment_type",
+              "showLabel": true,
+              "xs": 12,
+              "md": 6,
+              "isMultiSelect": false,
+              "values": ["percentage", "absolute", "multiplier"]
+            }
+          ]
+        },
+        "AEF": {
+          "title": "Add Exogenous Features",
+          "description": "Add and configure exogenous features",
+          "btnTitle": "Add Feature",
+          "isArray": true,
+          "arrayName": "exogenous_features",
+          "isHyperParam": false,
+          "features": [
+            {
+              "label": "Exogenous Feature Name",
+              "type": "TextInput",
+              "target": "config",
+              "placeholder": "Enter feature name",
+              "path": "adjustments.exogenous_features.exogenous_feature_name",
+              "showLabel": true,
+              "xs": 12,
+              "md": 6
+            }
+          ]
+        }
+      }
+    },
+    "HP": {
+      "title": "HyperParameters Setting",
+      "description": "Hyper Parameters Description",
+      "isHyperParamTab": true,
+      "featureGroups": {
+        "XGB": {
+          "title": "Xgboost",
+          "description": "Xgboost Hyperparameters",
+          "btnTitle": "Confirm",
+          "isArray": false,
+          "isHyperParam": true,
+          "features": [
+            {
+              "label": "Enable Multiprocessing",
+              "type": "Check",
+              "target": "config",
+              "path": "training.xg_boost.multiprocessing",
+              "direction": "column",
+              "xs": 12,
+              "md": 3
+            },
+            {
+              "label": "Learning Rate",
+              "type": "TextInput",
+              "target": "config",
+              "placeholder": "0.1",
+              "path": "training.xg_boost.learning_rate",
+              "showLabel": true,
+              "xs": 6,
+              "md": 3
+            },
+            {
+              "label": "Max Depth",
+              "type": "Counter",
+              "target": "config",
+              "placeholder": "6",
+              "path": "training.xg_boost.max_depth",
+              "showLabel": true,
+              "maxRange": 20,
+              "minRange": 1,
+              "xs": 6,
+              "md": 3
+            }
+          ]
+        },
+        "LGBM": {
+          "title": "Lgbm",
+          "description": "LGBM Hyperparameters",
+          "btnTitle": "Confirm",
+          "isArray": false,
+          "isHyperParam": true,
+          "features": [
+            {
+              "label": "Enable Multiprocessing",
+              "type": "Check",
+              "target": "config",
+              "path": "training.lgbm.multiprocessing",
+              "direction": "column",
+              "xs": 12,
+              "md": 3
+            },
+            {
+              "label": "Learning Rate",
+              "type": "TextInput",
+              "target": "config",
+              "placeholder": "0.1",
+              "path": "training.lgbm.learning_rate",
+              "showLabel": true,
+              "xs": 6,
+              "md": 3
+            }
+          ]
+        },
+        "XGBL": {
+          "title": "Xgblinear",
+          "description": "Xgblinear Linear Hyperparameters",
+          "btnTitle": "Confirm",
+          "isArray": false,
+          "isHyperParam": true,
+          "features": [
+            {
+              "label": "Enable Multiprocessing",
+              "type": "Check",
+              "target": "config",
+              "path": "training.xgb_linear.multiprocessing",
+              "direction": "column",
+              "xs": 12,
+              "md": 3
+            }
+          ]
+        },
+        "RF": {
+          "title": "RandomForest",
+          "description": "Random Forest Hyperparameters",
+          "btnTitle": "Confirm",
+          "isArray": false,
+          "isHyperParam": true,
+          "features": [
+            {
+              "label": "Enable Multiprocessing",
+              "type": "Check",
+              "target": "config",
+              "path": "training.rf.multiprocessing",
+              "direction": "column",
+              "xs": 12,
+              "md": 3
+            },
+            {
+              "label": "Max Depth",
+              "type": "Counter",
+              "target": "config",
+              "placeholder": "10",
+              "path": "training.rf.max_depth",
+              "showLabel": true,
+              "maxRange": 50,
+              "minRange": 1,
+              "xs": 6,
+              "md": 3
+            }
+          ]
+        },
+        "MLP": {
+          "title": "MLP",
+          "description": "MLP Neural Network Hyperparameters",
+          "btnTitle": "Confirm",
+          "isArray": false,
+          "isHyperParam": true,
+          "isDeepHyperParams": true,
+          "features": [
+            {
+              "label": "Enable Multiprocessing",
+              "type": "Check",
+              "target": "config",
+              "path": "training.mlp.multiprocessing",
+              "direction": "column",
+              "xs": 12,
+              "md": 3
+            }
+          ]
+        },
+        "LSTM": {
+          "title": "LSTM",
+          "description": "LSTM Neural Network Hyperparameters",
+          "btnTitle": "Confirm",
+          "isArray": false,
+          "isHyperParam": true,
+          "isDeepHyperParams": true,
+          "features": [
+            {
+              "label": "Enable Multiprocessing",
+              "type": "Check",
+              "target": "config",
+              "path": "training.lstm.multiprocessing",
+              "direction": "column",
+              "xs": 12,
+              "md": 3
+            }
+          ]
+        },
+        "GRU": {
+          "title": "GRU",
+          "description": "GRU Neural Network Hyperparameters",
+          "btnTitle": "Confirm",
+          "isArray": false,
+          "isHyperParam": true,
+          "isDeepHyperParams": true,
+          "features": [
+            {
+              "label": "Enable Multiprocessing",
+              "type": "Check",
+              "target": "config",
+              "path": "training.gru.multiprocessing",
+              "direction": "column",
+              "xs": 12,
+              "md": 3
+            }
+          ]
+        }
+      }
+    },
+    "DS": {
+      "title": "Dashboard Settings",
+      "description": "Dashboard Settings Description",
+      "isHyperParamTab": false,
+      "featureGroups": {
+        "GS": {
+          "title": "General Settings",
+          "description": "Configure General Settings like File Type",
+          "btnTitle": "Confirm",
+          "isArray": false,
+          "isHyperParam": false,
+          "features": [
+            {
+              "label": "File Type",
+              "type": "AutoComplete",
+              "target": "config",
+              "placeholder": "Select file type",
+              "path": "dashboard.file_type",
+              "showLabel": true,
+              "xs": 12,
+              "md": 6,
+              "isMultiSelect": false,
+              "values": ["csv", "excel", "parquet"]
+            }
+          ]
+        },
+        "SNOP": {
+          "title": "S&OP Setting",
+          "description": "Configure S&OP Setting",
+          "btnTitle": "Confirm",
+          "isArray": false,
+          "isHyperParam": false,
+          "features": [
+            {
+              "label": "Historical Horizon",
+              "type": "Counter",
+              "target": "config",
+              "placeholder": "12",
+              "path": "dashboard.historical_horizon",
+              "showLabel": true,
+              "maxRange": 60,
+              "minRange": 1,
+              "xs": 6,
+              "md": 4
+            },
+            {
+              "label": "Enable Aggregation",
+              "type": "Check",
+              "target": "config",
+              "path": "dashboard.enable_aggregation",
+              "direction": "column",
+              "xs": 12,
+              "md": 3
+            }
+          ]
+        },
+        "CD": {
+          "title": "Calendar Definations",
+          "description": "Configure Calendar Definations",
+          "btnTitle": "Confirm",
+          "isArray": false,
+          "isHyperParam": false,
+          "features": [
+            {
+              "label": "Week Active Days",
+              "type": "Counter",
+              "target": "config",
+              "placeholder": "7",
+              "path": "dashboard.week_active_days",
+              "showLabel": true,
+              "maxRange": 7,
+              "minRange": 1,
+              "xs": 6,
+              "md": 4
+            },
+            {
+              "label": "Date Offset",
+              "type": "Counter",
+              "target": "config",
+              "placeholder": "0",
+              "path": "dashboard.date_offset",
+              "showLabel": true,
+              "maxRange": 365,
+              "minRange": 0,
+              "xs": 6,
+              "md": 4
+            }
+          ]
+        }
+      }
+    }
+  }
+}

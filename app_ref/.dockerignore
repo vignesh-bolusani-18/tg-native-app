@@ -1,0 +1,48 @@
+# Node modules directory should not be included
+node_modules
+
+# Ignore the build directory if it's already created (handled in the Dockerfile)
+build
+
+# Ignore log files
+*.log
+
+# Ignore local environment files
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Ignore editor and system files
+.DS_Store
+*.swp
+*.swo
+*.swn
+*.swd
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# Ignore testing directories and coverage reports
+coverage
+__tests__/
+__mocks__/
+
+# Ignore temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*.backup
+
+# Ignore CI/CD config files if they are not needed in the build
+.github/
+.gitlab/
+
+# Ignore docker-compose files if they're not needed in the build
+docker-compose*.yml
+
+# Ignore any custom ignored files
+.ignore/

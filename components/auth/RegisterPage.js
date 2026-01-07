@@ -24,6 +24,7 @@ import Toast from "react-native-toast-message";
 import useAuth from "../../hooks/useAuth";
 import { useGoogleAuth } from "../../hooks/useGoogleAuth";
 import { updateUserInDatabase } from "../../utils/createUserEntry";
+import ENV from "../../utils/env";
 import { processToken } from "../../utils/jwtUtils";
 import { registerSchema } from "../../utils/validation";
 
@@ -53,8 +54,8 @@ const RegisterPage = () => {
 
   // Initialize Cognito Pool
   const userPool = new CognitoUserPool({
-    UserPoolId: process.env.REACT_APP_USER_POOL_ID || "",
-    ClientId: process.env.REACT_APP_USER_POOL_WEB_CLIENT_ID || "",
+    UserPoolId: ENV.USER_POOL_ID || "",
+    ClientId: ENV.USER_POOL_WEB_CLIENT_ID || "",
   });
 
   useEffect(() => {
