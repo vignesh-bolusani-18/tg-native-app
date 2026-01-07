@@ -1,10 +1,12 @@
 import { StatusBar } from "expo-status-bar";
 import React, {
     useEffect,
-    useMemo,
+    useRef,
     useState,
 } from "react";
 import {
+    Animated,
+    Image,
     KeyboardAvoidingView,
     Platform,
     ScrollView,
@@ -16,6 +18,7 @@ import {
 // Hooks & Logic
 import useAuth from "../../hooks/useAuth";
 import useConfig from "../../hooks/useConfig";
+import useDataset from "../../hooks/useDataset";
 import useExperiment from "../../hooks/useExperiment";
 import useModule from "../../hooks/useModule";
 import { useVibe } from "../../hooks/useVibe";
@@ -24,11 +27,13 @@ import { oldFlowModules } from "../../utils/oldFlowModules";
 
 // Components
 import LoadingScreen from "../../components/LoadingScreen";
-import CompanyHeader from "./CompanyHeader";
+// import CompanyHeader from "./CompanyHeader";
 import ChatContainer from "./chat/ChatContainer";
-import InputSection from "./input/InputSection";
-import AnalysisWorkflowInitiator from "./ui/AnalysisWorkflowInitiator";
+import ChatHistorySidebar from "./chat/ChatHistorySidebar";
+import AnalyzeExperimentInlinePopup from "./input/AnalyzeExperimentInlinePopup";
+import MentionEditor from "./input/MentionEditor";
 import ErrorDisplay from "./ui/ErrorDisplay";
+import AppSidebar from "./ui/AppSidebar";
 
 // Assets
 // const santaCap = require("../../../assets/Illustrations/Santa Cap.png");
@@ -104,13 +109,20 @@ const ChatPage = () => {
   // console.log(\"ChatPage Rendered\");
 
   const [isNewChatMode, setIsNewChatMode] = useState(false);
+  const [experimentPopupExpanded, setExperimentPopupExpanded] = useState(false);
+  const [inputValue, setInputValue] = useState("");
+  const [isAppMenuOpen, setIsAppMenuOpen] = useState(false);
+  const suggestionOpacityAnim = useRef(new Animated.Value(1)).current;
+  const inputRef = useRef(null);
   // const [isSidebarVisible, setIsSidebarVisible] = useState(false); // Removed local state
 
   const { currentCompany } = useAuth();
-  const { experiments_list, fetchExperiments } = useExperiment();
+  const { experiments_list, fetchExperiments, getCompletedExperiments } = useExperiment();
+  const { datasets_name_list } = useDataset();
   
   const {
     selectedAnalysisExperiment,
+    clearSelectedAnalysisExperiment,
     analysisSystemPrompt,
     analysisDataPathDict,
   } = useVibe();
@@ -131,6 +143,7 @@ const ChatPage = () => {
     currentConversation,
     addMessage,
     navigating,
+    switchConversation,
     // creditScore, // Not used in this component
     selectedDatasets,
     clearAllSelectedDatasets,
@@ -151,25 +164,42 @@ const ChatPage = () => {
   
   const canStartChat = !isWaitingForAI; // Removed creditScore check as requested
 
+  // Build suggestions for MentionEditor (used in selected experiment input)
+  const completedExperiments = getCompletedExperiments ? getCompletedExperiments() : (experiments_list || []).filter(
+    exp => exp.experimentStatus === "Completed" && !exp.inTrash && !exp.isArchive
+  );
+  const experimentSuggestions = completedExperiments.map(exp => ({
+    id: exp.experimentID,
+    name: exp.experimentName || "Unnamed Experiment",
+    type: 'experiment',
+    data: exp
+  }));
+  const datasetSuggestions = (datasets_name_list || []).map(name => ({
+    id: name,
+    name: name,
+    type: 'dataset'
+  }));
+  const mentionSuggestions = [...datasetSuggestions, ...experimentSuggestions];
+
   // ⭐ FIX: Fetch experiments ONCE when company changes
   // Don't include fetchExperiments in deps to prevent loops
   useEffect(() => {
-    console.log('🔄 [ChatPage] Company changed, checking if experiments need fetch...');
-    console.log('   Company:', currentCompany?.companyID);
-    console.log('   Current experiments count:', experiments_list?.length || 0);
+    // console.log('🔄 [ChatPage] Company changed, checking if experiments need fetch...');
+    // console.log('   Company:', currentCompany?.companyID);
+    // console.log('   Current experiments count:', experiments_list?.length || 0);
     
     if (currentCompany?.companyID && experiments_list.length === 0) {
-      console.log('🚀 [ChatPage] Fetching experiments for new company...');
+      // console.log('🚀 [ChatPage] Fetching experiments for new company...');
       fetchExperiments(false).then((exps) => {
-        console.log('✅ [ChatPage] Experiments fetched:', exps?.length || 0);
-        if (exps && exps.length > 0) {
-          console.log('   First experiment:', exps[0]?.experimentID || exps[0]?.id);
-        }
+        // console.log('✅ [ChatPage] Experiments fetched:', exps?.length || 0);
+        // if (exps && exps.length > 0) {
+        //   console.log('   First experiment:', exps[0]?.experimentID || exps[0]?.id);
+        // }
       }).catch(err => {
-        console.error('❌ [ChatPage] Error fetching experiments:', err);
+        // console.error('❌ [ChatPage] Error fetching experiments:', err);
       });
     } else if (experiments_list.length > 0) {
-      console.log('✅ [ChatPage] Experiments already loaded:', experiments_list.length);
+      // console.log('✅ [ChatPage] Experiments already loaded:', experiments_list.length);
     }
     // ⭐ CRITICAL: Only depend on companyID - adding fetchExperiments or experiments_list causes infinite loops
     // fetchExperiments is stable from useCallback, experiments_list.length would trigger on every change
@@ -183,7 +213,7 @@ const ChatPage = () => {
     const hasNoConversations = !conversations || Object.keys(conversations).length === 0;
     
     if (!currentConversationId && hasNoConversations) {
-      console.log("🎬 Creating default chat - no existing conversations");
+      // console.log("🎬 Creating default chat - no existing conversations");
       createNewChat("supply_chain_manager_workflow", "New Chat").catch(err => console.error(err));
     }
     // ⭐ Only run on mount and when conversation state changes
@@ -196,7 +226,7 @@ const ChatPage = () => {
     // Wait a bit for initial load to complete
     const timer = setTimeout(() => {
       if (!currentConversationId) {
-        console.log("⚠️ No active conversation after initial load - creating one");
+        // console.log("⚠️ No active conversation after initial load - creating one");
         createNewChat("supply_chain_manager_workflow", "New Chat").catch(err => 
           console.error("Failed to create safety net chat:", err)
         );
@@ -283,8 +313,20 @@ const ChatPage = () => {
   }, [isWaitingForAI]);
 
   const handleSendMessage = async (message) => {
-    // Debug logging - disabled for production
-    // console.log('Sending message:', message.substring(0, 50));
+    // ⭐ CRITICAL: Debug logging to trace message flow
+    // console.log('📤 [ChatPage.handleSendMessage] START');
+    // console.log('   Message:', message?.substring(0, 50) || 'EMPTY');
+    // console.log('   currentConversationId:', currentConversationId);
+    // console.log('   canSendMessage:', canSendMessage);
+    // console.log('   isWaitingForAI:', isWaitingForAI);
+    // console.log('   selectedAnalysisExperiment:', selectedAnalysisExperiment?.experimentName || 'None');
+    // console.log('   analysisSystemPrompt:', analysisSystemPrompt ? 'Present' : 'None');
+    // console.log('   analysisDataPathDict:', analysisDataPathDict ? Object.keys(analysisDataPathDict) : 'None');
+    
+    if (!message || !message.trim()) {
+      // console.warn('⚠️ [ChatPage.handleSendMessage] Empty message, aborting');
+      return;
+    }
     
     let data = Object.fromEntries(
       Object.entries(selectedDatasets).map(([key, value]) => [key, value.path])
@@ -293,11 +335,14 @@ const ChatPage = () => {
     if (analysisDataPathDict) {
       data = { ...data, ...analysisDataPathDict };
     }
+    
+    // console.log('   Final data keys:', Object.keys(data));
 
     if (isNewChatMode) {
       setIsNewChatMode(false);
     }
 
+    // console.log('📥 [ChatPage.handleSendMessage] Calling addMessage...');
     await addMessage({
       id: `user-${Date.now()}`,
       type: "user",
@@ -306,27 +351,39 @@ const ChatPage = () => {
       timestamp: new Date().toISOString(),
       conversationId: currentConversationId,
     });
+    // console.log('✅ [ChatPage.handleSendMessage] addMessage completed');
 
+    setInputValue("");
     setIsWaitingForAI(true);
     
     const finalQuery = analysisSystemPrompt ? analysisSystemPrompt + "\n\n" + message : message;
+    // console.log('📡 [ChatPage.handleSendMessage] Calling sendQuery...');
+    // console.log('   finalQuery length:', finalQuery?.length);
 
     sendQuery({
       query: finalQuery,
       data: data,
     });
+    // console.log('✅ [ChatPage.handleSendMessage] sendQuery called');
     
     clearAllSelectedDatasets();
+    // console.log('📤 [ChatPage.handleSendMessage] COMPLETE');
   };
 
   const handleStartChat = async (suggestion) => {
+    // console.log('🚀 [ChatPage.handleStartChat] START');
+    // console.log('   Suggestion:', suggestion?.substring(0, 50) || 'EMPTY');
+    // console.log('   currentConversationId:', currentConversationId);
+    
     if (isNewChatMode) setIsNewChatMode(false);
 
     let data = {};
     if (analysisDataPathDict) {
       data = { ...data, ...analysisDataPathDict };
     }
+    // console.log('   Data keys:', Object.keys(data));
 
+    // console.log('📥 [ChatPage.handleStartChat] Calling addMessage...');
     await addMessage({
       id: `user-${Date.now()}`,
       type: "user",
@@ -335,13 +392,16 @@ const ChatPage = () => {
       timestamp: new Date().toISOString(),
       conversationId: currentConversationId,
     });
+    // console.log('✅ [ChatPage.handleStartChat] addMessage completed');
 
     setIsWaitingForAI(true);
 
+    // console.log('📡 [ChatPage.handleStartChat] Calling sendQuery...');
     sendQuery({
       query: analysisSystemPrompt ? analysisSystemPrompt + "\n\n" + suggestion : suggestion,
       data: data,
     });
+    // console.log('🚀 [ChatPage.handleStartChat] COMPLETE');
   };
 
   const getSuggestionPrompts = () => {
@@ -350,37 +410,6 @@ const ChatPage = () => {
     }
     return suggestionPrompts;
   };
-
-  /**
-   * ⭐ MATCHES tg-application: Parse experimentStatus helper
-   * experimentStatus can be a JSON string like {"status": "Completed"} or plain "Completed"
-   */
-  const parseExperimentStatus = (input) => {
-    if (!input) return null;
-    try {
-      const json = JSON.parse(input);
-      if (typeof json === "object" && json !== null) {
-        return json.status;
-      }
-    } catch (_e) {
-      return input;
-    }
-    return input;
-  };
-
-  const completedExperiments = useMemo(() => {
-    return (
-      experiments_list?.filter(
-        (experiment) =>
-          !experiment.inTrash &&
-          parseExperimentStatus(experiment.experimentStatus) === "Completed" &&
-          !experiment.isArchive &&
-          ["demand-planning", "inventory-optimization", "price-promotion-optimization"].includes(
-            experiment.experimentModuleName
-          )
-      ) || []
-    );
-  }, [experiments_list]);
 
   const processingText = currentConversation?.processingStepText;
 
@@ -414,79 +443,58 @@ const ChatPage = () => {
     <View style={{ flex: 1, backgroundColor: 'white' }}>
       <StatusBar style="dark" />
       
-      {/* Company Header */}
-      <CompanyHeader />
-      
+      {/* New Header Implementation */}
+      <View style={{ 
+          height: 60, 
+          flexDirection: 'row', 
+          alignItems: 'center', 
+          justifyContent: 'space-between',
+          paddingHorizontal: 16,
+          backgroundColor: '#FFF',
+          borderBottomWidth: 1,
+          borderBottomColor: '#F0F0F0',
+          marginTop: Platform.OS === 'android' ? 30 : 0
+      }}>
+          {/* Left: App Menu */}
+          <TouchableOpacity onPress={() => setIsAppMenuOpen(true)} style={{ padding: 8 }}>
+             <MaterialIcons name="chevron-left" size={24} color="#333" />
+          </TouchableOpacity>
+
+          {/* Center: Brand */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Image 
+                source={require('../../assets/images/tg_logo6.svg')} 
+                style={{ width: 28, height: 28 }}
+                resizeMode="contain"
+            />
+             <Text style={{ fontFamily: 'Inter Display', fontSize: 18, fontWeight: '600', color: '#333' }}>Agent</Text>
+          </View>
+
+          {/* Right: Actions */}
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+             <TouchableOpacity 
+                style={{ padding: 8, marginRight: 4 }}
+                onPress={() => {
+                   // console.log('🆕 Creating new chat...');
+                   createNewChat("supply_chain_manager_workflow", "New Chat");
+                }}
+             >
+                <MaterialIcons name="add" size={24} color="#333" />
+             </TouchableOpacity>
+             <TouchableOpacity onPress={() => setIsSidebarOpen(true)} style={{ padding: 8 }}>
+                <MaterialIcons name="history" size={24} color="#333" />
+             </TouchableOpacity>
+          </View>
+      </View>
+
       {/* Workspace Selection Required Banner */}
       {!currentCompany && (
-        <View style={{ backgroundColor: '#fef3c7', padding: 16, borderBottomWidth: 1, borderBottomColor: '#fcd34d' }}>
-          <Text style={{ fontSize: 14, color: '#92400e', fontWeight: '500', textAlign: 'center' }}>
-            📌 Please select or create a workspace from the header above to start chatting
+        <View style={{ backgroundColor: '#fef3c7', padding: 12, borderBottomWidth: 1, borderBottomColor: '#fcd34d' }}>
+          <Text style={{ fontSize: 13, color: '#92400e', fontWeight: '500', textAlign: 'center' }}>
+            📌 Please select workspace from menu
           </Text>
         </View>
       )}
-      
-      {/* Chat Header */}
-      <View 
-        style={{ 
-          flexDirection: 'row', 
-          alignItems: 'center', 
-          justifyContent: 'space-between', 
-          paddingHorizontal: 12, 
-          paddingVertical: 10, 
-          borderBottomWidth: 1, 
-          borderBottomColor: '#f3f4f6', 
-          backgroundColor: '#ffffff', 
-          zIndex: 10 
-        }}
-      >
-        {/* Left section: Menu + Title (flex: 1 with overflow hidden) */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 }}>
-          <TouchableOpacity 
-            onPress={() => {
-              console.log('🔵 Menu pressed, current isSidebarOpen:', isSidebarOpen);
-              setIsSidebarOpen(!isSidebarOpen);
-            }}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            style={{ 
-              padding: 10, 
-              marginRight: 8, 
-              borderRadius: 9999, 
-              backgroundColor: '#f9fafb',
-              zIndex: 100
-            }}
-            activeOpacity={0.7}
-          >
-            <MaterialIcons name="menu" size={24} color="#374151" />
-          </TouchableOpacity>
-          <Text 
-            style={{ fontSize: 16, fontWeight: '600', color: '#1f2937', flex: 1 }}
-            numberOfLines={1}
-            ellipsizeMode="tail"
-          >
-            {currentConversation?.title || "New Chat"}
-          </Text>
-        </View>
-        
-        {/* Right section: New Chat button (fixed width, always visible) */}
-        <TouchableOpacity 
-          onPress={() => {
-            console.log('🆕 Creating new chat...');
-            createNewChat("supply_chain_manager_workflow", "New Chat");
-          }}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          style={{ 
-            padding: 10, 
-            borderRadius: 9999, 
-            backgroundColor: '#eff6ff',
-            flexShrink: 0,
-            zIndex: 100
-          }}
-          activeOpacity={0.7}
-        >
-          <MaterialIcons name="add" size={24} color="#2563eb" />
-        </TouchableOpacity>
-      </View>
 
       {/* Main Layout */}
       <KeyboardAvoidingView
@@ -517,93 +525,430 @@ const ChatPage = () => {
                   dataPathDict={analysisDataPathDict}
                 />
               </View>
-              {/* INPUT SECTION (Sticky Bottom for Chat) */}
-              <View style={{ width: '100%', backgroundColor: 'white', borderTopWidth: 1, borderTopColor: '#f3f4f6', padding: 8 }}>
-                <InputSection
-                  onSendMessage={handleSendMessage}
-                  onStartChat={handleStartChat}
-                  canSendMessage={canSendMessage}
-                  hasConversation={hasConversation}
-                  isWaitingForAI={isWaitingForAI}
-                />
+              {/* INPUT SECTION (Sticky Bottom for Chat) - Use same AnalyzeExperimentInlinePopup */}
+              <View style={{ width: '100%', backgroundColor: 'white', paddingHorizontal: 20, paddingVertical: 12 }}>
+                <View style={{ width: '100%', maxWidth: 768, alignSelf: 'center' }}>
+                  <AnalyzeExperimentInlinePopup
+                    isExpanded={experimentPopupExpanded}
+                    onToggle={() => {
+                      const willExpand = !experimentPopupExpanded;
+                      setExperimentPopupExpanded(willExpand);
+                    }}
+                    onSelectExperiment={(exp) => {
+                      if (exp) {
+                        // console.log('📊 [ChatPage] Experiment selected:', exp.experimentName);
+                        setExperimentPopupExpanded(false);
+                      }
+                    }}
+                    inputValue={inputValue}
+                    onInputChange={setInputValue}
+                    onSendMessage={() => {
+                      if (inputValue.trim() && canSendMessage && !isWaitingForAI) {
+                        handleSendMessage(inputValue.trim());
+                      }
+                    }}
+                    isSendDisabled={!inputValue.trim() || !canSendMessage || isWaitingForAI}
+                    isWaitingForAI={isWaitingForAI}
+                  />
+                </View>
               </View>
             </View>
           ) : (
-            /* EMPTY STATE / NEW CHAT VIEW */
-            <ScrollView 
-              style={{ flex: 1, paddingHorizontal: 16 }}
-              contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingBottom: 40 }}
-            >
-              <View style={{ width: '100%', maxWidth: 768, alignSelf: 'center' }}>
-                <View style={{ alignItems: 'center', marginBottom: 32 }}>
-                  <Text style={{ fontSize: 30, fontWeight: 'bold', color: '#111827', textAlign: 'center', marginBottom: 12 }}>
-                    What shall we build today?
-                  </Text>
-                  <Text style={{ fontSize: 16, color: '#6b7280', textAlign: 'center', lineHeight: 24, maxWidth: 512 }}>
-                    Build AI models through simple conversations. Tell me what you want to predict and I&apos;ll create it for you.
-                  </Text>
+            /* EMPTY STATE / NEW CHAT VIEW - FIGMA DESIGN */
+            <View style={{ flex: 1 }}>
+              {/* Scrollable Content Area */}
+              <ScrollView 
+                style={{ flex: 1, paddingHorizontal: 20 }}
+                contentContainerStyle={{ paddingTop: 40, paddingBottom: 20 }}
+              >
+                <View style={{ width: '100%', maxWidth: 768, alignSelf: 'center' }}>
+                  <View style={{ alignItems: 'center', marginBottom: 40 }}>
+                    <Text style={{ 
+                      fontFamily: 'Inter Display', 
+                      fontSize: 24, 
+                      fontWeight: '600', 
+                      lineHeight: 32, 
+                      letterSpacing: -0.24,
+                      color: '#333333', 
+                      textAlign: 'center', 
+                      marginBottom: 20 
+                    }}>
+                      How can I help you today?
+                    </Text>
+                    <Text style={{ 
+                      fontFamily: 'Inter Display',
+                      fontSize: 12, 
+                      fontWeight: '400',
+                      lineHeight: 16,
+                      color: '#999999', 
+                      textAlign: 'center'
+                    }}>
+                      I can help you forecast demand, optimize inventory, improve pricing, or plan promotions
+                    </Text>
+                  </View>
                 </View>
+              </ScrollView>
 
-                {/* INPUT SECTION (Centered for Landing) */}
-                <View style={{ marginBottom: 40, width: '100%' }}>
-                  <InputSection
-                    onSendMessage={handleSendMessage}
-                    onStartChat={handleStartChat}
-                    canSendMessage={canSendMessage && !!currentCompany}
-                    hasConversation={hasConversation}
-                    isWaitingForAI={isWaitingForAI}
-                  />
-                  {!currentCompany && (
+              {/* Fixed Bottom Section - FIGMA Layout with Smooth Animations */}
+              <View style={{ paddingHorizontal: 20, paddingBottom: 8, backgroundColor: '#FFFFFF', position: 'relative' }}>
+                <View style={{ width: '100%', maxWidth: 768, alignSelf: 'center' }}>
+                  {/* Container for suggestion cards - keeps position fixed */}
+                  <View style={{ marginBottom: 12, minHeight: 40 }}>
+                    {/* Suggestion Tiles - Fade out when popup expands */}
+                    {!selectedAnalysisExperiment && (
+                      <Animated.View style={{ 
+                        opacity: suggestionOpacityAnim,
+                        pointerEvents: experimentPopupExpanded ? 'none' : 'auto'
+                      }}>
+                        <ScrollView 
+                          horizontal 
+                          showsHorizontalScrollIndicator={false}
+                          contentContainerStyle={{ gap: 16, paddingHorizontal: 0 }}
+                        >
+                          {getSuggestionPrompts().slice(0, 4).map((prompt, index) => (
+                            <TouchableOpacity
+                              key={index}
+                              activeOpacity={canStartChat ? 0.7 : 1}
+                              disabled={!canStartChat}
+                              onPress={() => handleStartChat(prompt.prompt)}
+                              style={{
+                                backgroundColor: '#FFFFFF',
+                                borderWidth: 1,
+                                borderColor: 'rgba(237, 237, 237, 0.7)',
+                                borderRadius: 28,
+                                paddingLeft: 16,
+                                paddingRight: 12,
+                                paddingVertical: 4,
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                gap: 10,
+                                opacity: !canStartChat ? 0.6 : 1
+                              }}
+                            >
+                              <Text style={{ 
+                                fontFamily: 'Inter Display', 
+                                fontSize: 14, 
+                                fontWeight: '500', 
+                                lineHeight: 24,
+                                color: '#666666'
+                              }} numberOfLines={1}>
+                                {prompt.prompt.length > 20 ? prompt.prompt.substring(0, 20) + '...' : prompt.prompt}
+                              </Text>
+                              <MaterialIcons name="chevron-right" size={16} color="#B3B3B3" />
+                            </TouchableOpacity>
+                          ))}
+                        </ScrollView>
+                      </Animated.View>
+                    )}
+                  </View>
+
+                  {/* Analyze Experiment Inline Popup - Same component always */}
+                  {!selectedAnalysisExperiment && (
+                    <View style={{ marginBottom: 1.5 }}>
+                      <AnalyzeExperimentInlinePopup
+                        isExpanded={experimentPopupExpanded}
+                        onToggle={() => {
+                          const willExpand = !experimentPopupExpanded;
+                          setExperimentPopupExpanded(willExpand);
+                          // Animate suggestions fade
+                          Animated.timing(suggestionOpacityAnim, {
+                            toValue: willExpand ? 0 : 1,
+                            duration: 300,
+                            useNativeDriver: true,
+                          }).start();
+                        }}
+                        onSelectExperiment={(exp) => {
+                          if (exp) {
+                            // console.log('📊 [ChatPage] Experiment selected:', exp.experimentName);
+                            setExperimentPopupExpanded(false);
+                            // Restore suggestions opacity
+                            Animated.timing(suggestionOpacityAnim, {
+                              toValue: 1,
+                              duration: 300,
+                              useNativeDriver: true,
+                            }).start();
+                          }
+                        }}
+                        inputValue={inputValue}
+                        onInputChange={setInputValue}
+                        onSendMessage={() => {
+                          if (inputValue.trim() && canSendMessage && !isWaitingForAI) {
+                            handleSendMessage(inputValue.trim());
+                          }
+                        }}
+                        isSendDisabled={!inputValue.trim() || !canSendMessage || isWaitingForAI}
+                        isWaitingForAI={isWaitingForAI}
+                      />
+                    </View>
+                  )}
+
+                  {/* Selected Experiment Display - Matches Figma 3968:1360 */}
+                  {selectedAnalysisExperiment && (
+                    <View style={{ marginBottom: 1.5 }}>
+                      {/* Blue Experiment Card Header */}
+                      <View style={{
+                        backgroundColor: '#008AE5',
+                        paddingHorizontal: 16,
+                        paddingVertical: 12,
+                        borderTopLeftRadius: 12,
+                        borderTopRightRadius: 12,
+                        gap: 12,
+                      }}>
+                        {/* Experiment Name Row with Edit + Close */}
+                        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={{
+                              fontFamily: 'Inter Display',
+                              fontSize: 15,
+                              fontWeight: '600',
+                              lineHeight: 24,
+                              color: '#FFFFFF',
+                            }}>
+                              {selectedAnalysisExperiment.experimentName}
+                            </Text>
+                          </View>
+                          {/* Edit Button */}
+                          <TouchableOpacity 
+                            onPress={() => setExperimentPopupExpanded(true)} 
+                            style={{ padding: 4 }}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <MaterialIcons name="edit" size={16} color="#FFFFFF" />
+                          </TouchableOpacity>
+                          {/* Close Button */}
+                          <TouchableOpacity 
+                            onPress={() => clearSelectedAnalysisExperiment()} 
+                            style={{ padding: 4 }}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <MaterialIcons name="close" size={18} color="#FFFFFF" />
+                          </TouchableOpacity>
+                        </View>
+                        {/* Experiment Tags */}
+                        <View style={{ flexDirection: 'row', gap: 12, flexWrap: 'wrap' }}>
+                          {selectedAnalysisExperiment.experimentModuleName && (
+                            <View style={{ backgroundColor: '#F0F9FF', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 }}>
+                              <Text style={{ fontFamily: 'Geist Mono', fontSize: 11, fontWeight: '500', lineHeight: 16, color: '#006BB2' }}>
+                                {selectedAnalysisExperiment.experimentModuleName}
+                              </Text>
+                            </View>
+                          )}
+                          {selectedAnalysisExperiment.experimentRegion && (
+                            <View style={{ backgroundColor: '#FFF5DB', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 }}>
+                              <Text style={{ fontFamily: 'Geist Mono', fontSize: 11, fontWeight: '500', lineHeight: 14, color: '#8F6900' }}>
+                                {selectedAnalysisExperiment.experimentRegion}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+                      {/* White Input Area Below - Figma 3968:1365 */}
+                      <View style={{
+                        backgroundColor: '#FFFFFF',
+                        borderWidth: 1.5,
+                        borderTopWidth: 0,
+                        borderColor: 'rgba(0, 138, 229, 0.5)',
+                        borderBottomLeftRadius: 12,
+                        borderBottomRightRadius: 12,
+                        paddingHorizontal: 16,
+                        paddingTop: 16,
+                        paddingBottom: 12,
+                        shadowColor: '#333333',
+                        shadowOffset: { width: 0, height: 8 },
+                        shadowOpacity: 0.15,
+                        shadowRadius: 20,
+                        elevation: 5,
+                        gap: 28,
+                      }}>
+                        {/* MentionEditor Input - Functional */}
+                        <View style={{ minHeight: 24 }}>
+                          <MentionEditor
+                            ref={inputRef}
+                            value={inputValue}
+                            onChange={setInputValue}
+                            onSend={() => {
+                              if (inputValue.trim() && canSendMessage && !isWaitingForAI) {
+                                handleSendMessage(inputValue.trim());
+                                setInputValue("");
+                              }
+                            }}
+                            placeholder="Ask anything..."
+                            placeholderColor="#999999"
+                            editable={!isWaitingForAI}
+                            suggestions={mentionSuggestions}
+                            onMentionSelect={(item) => {
+                              console.log('📎 Mention selected:', item.name);
+                            }}
+                            style={{
+                              fontFamily: 'Inter Display',
+                              fontSize: 16,
+                              fontWeight: '500',
+                              lineHeight: 24,
+                              color: '#333333',
+                            }}
+                          />
+                        </View>
+                        {/* Action Buttons Row */}
+                        <View style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        }}>
+                          {/* Left: @ and Attachment icons */}
+                          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                            <TouchableOpacity 
+                              style={{ padding: 4, borderRadius: 4 }} 
+                              activeOpacity={0.7}
+                              disabled={isWaitingForAI}
+                            >
+                              <MaterialIcons name="alternate-email" size={18} color="#808080" />
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                              style={{ padding: 4, borderRadius: 4 }} 
+                              activeOpacity={0.7}
+                              disabled={isWaitingForAI}
+                            >
+                              <MaterialIcons name="attach-file" size={18} color="#808080" />
+                            </TouchableOpacity>
+                          </View>
+                          {/* Right: Mic and Send buttons */}
+                          <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+                            <TouchableOpacity
+                              style={{
+                                backgroundColor: '#F0F0F0',
+                                padding: 6,
+                                borderRadius: 16,
+                              }}
+                              activeOpacity={0.7}
+                            >
+                              <MaterialIcons name="mic" size={18} color="#666666" />
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              onPress={() => {
+                                if (inputValue.trim() && canSendMessage && !isWaitingForAI) {
+                                  handleSendMessage(inputValue.trim());
+                                  setInputValue("");
+                                }
+                              }}
+                              disabled={!inputValue.trim() || !canSendMessage || isWaitingForAI}
+                              style={{
+                                backgroundColor: '#0F8BFF',
+                                paddingHorizontal: 12,
+                                paddingVertical: 4,
+                                borderRadius: 20,
+                                shadowColor: '#001F3B',
+                                shadowOffset: { width: 0, height: 4 },
+                                shadowOpacity: 0.1,
+                                shadowRadius: 8,
+                                elevation: 3,
+                                opacity: (!inputValue.trim() || !canSendMessage || isWaitingForAI) ? 0.5 : 1,
+                              }}
+                              activeOpacity={0.7}
+                            >
+                              <MaterialIcons name="arrow-forward" size={18} color="#FFFFFF" />
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      </View>
+                    </View>
+                  )}
+
+                  {!currentCompany && selectedAnalysisExperiment && (
+                    <Text style={{ fontSize: 12, color: '#ef4444', textAlign: 'center', marginTop: 8 }}>
+                      Select a workspace to start chatting
+                    </Text>
+                  )}
+                  {!currentCompany && !selectedAnalysisExperiment && (
                     <Text style={{ fontSize: 12, color: '#ef4444', textAlign: 'center', marginTop: 8 }}>
                       Select a workspace to start chatting
                     </Text>
                   )}
                 </View>
-
-                {/* Suggestions Grid */}
-                <View style={{ width: '100%', position: 'relative' }}>
-                  {/* Experiments Initiator */}
-                  {completedExperiments.length > 0 && (
-                    <View style={{ marginBottom: 16 }}>
-                      <AnalysisWorkflowInitiator />
-                    </View>
-                  )}
-
-                  {/* Prompt Cards */}
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 16 }}>
-                    {getSuggestionPrompts().map((prompt, index) => (
-                      <TouchableOpacity
-                        key={index}
-                        activeOpacity={canStartChat ? 0.7 : 1}
-                        disabled={!canStartChat}
-                        onPress={() => handleStartChat(prompt.prompt)}
-                        style={{ 
-                          minHeight: 120, 
-                          width: '48%', 
-                          backgroundColor: '#ffffff', 
-                          borderWidth: 1, 
-                          borderColor: '#e5e7eb', 
-                          borderRadius: 12, 
-                          padding: 20, 
-                          marginBottom: 16,
-                          opacity: !canStartChat ? 0.6 : 1
-                        }}
-                      >
-                        <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#6b7280', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                          {prompt.module}
-                        </Text>
-                        <Text style={{ fontSize: 14, fontWeight: '500', color: '#111827', lineHeight: 20 }}>
-                          {prompt.prompt}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
               </View>
-            </ScrollView>
+            </View>
           )}
         </View>
       </KeyboardAvoidingView>
+
+      {/* App Menu Sidebar (LEFT) - Card Style with Gaps */}
+      {isAppMenuOpen && (
+        <View style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.4)',
+          zIndex: 1050,
+        }}>
+           <View style={{ flex: 1, flexDirection: 'row' }}>
+              <View style={{
+                width: 280,
+                marginLeft: 12,
+                marginTop: 12,
+                marginBottom: 12,
+                backgroundColor: 'white',
+                borderRadius: 12,
+                shadowColor: '#000',
+                shadowOffset: { width: 4, height: 0 },
+                shadowOpacity: 0.15,
+                shadowRadius: 12,
+                elevation: 8,
+              }}>
+                 <AppSidebar onClose={() => setIsAppMenuOpen(false)} />
+              </View>
+              <TouchableOpacity 
+                style={{ flex: 1 }}
+                activeOpacity={1}
+                onPress={() => setIsAppMenuOpen(false)}
+              />
+           </View>
+        </View>
+      )}
+
+      {/* Chat History Sidebar Overlay (RIGHT) */}
+      {isSidebarOpen && (
+        <View style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          zIndex: 1000,
+        }}>
+           <View style={{ flex: 1, flexDirection: 'row' }}>
+              <TouchableOpacity 
+                style={{ flex: 1 }}
+                activeOpacity={1}
+                onPress={() => setIsSidebarOpen(false)}
+              />
+              <View style={{
+                width: 300,
+                backgroundColor: 'white',
+                shadowColor: '#000',
+                shadowOffset: { width: -2, height: 0 },
+                shadowOpacity: 0.25,
+                shadowRadius: 8,
+                elevation: 5,
+              }}>
+                <ChatHistorySidebar
+                  conversations={Object.values(conversations || {})}
+                  currentConversationId={currentConversationId}
+                  onSelectConversation={(id) => {
+                    switchConversation(id);
+                    setIsSidebarOpen(false);
+                  }}
+                  onCreateNew={() => {
+                    createNewChat("supply_chain_manager_workflow", "New Chat");
+                    setIsSidebarOpen(false);
+                  }}
+                  onClose={() => setIsSidebarOpen(false)}
+                />
+              </View>
+           </View>
+        </View>
+      )}
     </View>
   );
 };

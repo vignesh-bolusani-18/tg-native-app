@@ -1,5 +1,5 @@
 // D:\TG_REACT_NATIVE_MOBILE_APP\components\agent\input\LandingInputSection.js
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { MaterialIcons } from "@expo/vector-icons";
 import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
 
@@ -106,18 +106,20 @@ const LandingInputSection = ({
             alignItems: 'center', 
             marginBottom: 8,
             paddingHorizontal: 12,
-            paddingVertical: 8,
+            paddingVertical: 6,
             backgroundColor: '#EFF6FF',
-            borderRadius: 8,
-            marginHorizontal: 4
+            borderRadius: 16,
+            marginHorizontal: 4,
+            borderWidth: 1,
+            borderColor: '#BFDBFE'
           }}
         >
-          <MaterialCommunityIcons name="flask" size={16} color="#3B82F6" />
-          <Text style={{ flex: 1, marginLeft: 8, fontSize: 13, color: '#1E40AF', fontWeight: '500' }} numberOfLines={1}>
-            @{selectedAnalysisExperiment.experimentName}
+          <MaterialIcons name="science" size={14} color="#3B82F6" />
+          <Text style={{ flex: 1, marginLeft: 6, fontSize: 12, color: '#1E40AF', fontWeight: '500', fontFamily: 'Inter Display' }} numberOfLines={1}>
+            {selectedAnalysisExperiment.experimentName}
           </Text>
-          <TouchableOpacity onPress={clearSelectedAnalysisExperiment}>
-            <MaterialCommunityIcons name="close" size={18} color="#6B7280" />
+          <TouchableOpacity onPress={clearSelectedAnalysisExperiment} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <MaterialIcons name="close" size={16} color="#6B7280" />
           </TouchableOpacity>
         </View>
       )}
@@ -130,59 +132,45 @@ const LandingInputSection = ({
             alignItems: 'center', 
             marginBottom: 8,
             paddingHorizontal: 12,
-            paddingVertical: 8,
+            paddingVertical: 6,
             backgroundColor: '#F0FDF4',
-            borderRadius: 8,
-            marginHorizontal: 4
+            borderRadius: 16,
+            marginHorizontal: 4,
+            borderWidth: 1,
+            borderColor: '#BBF7D0'
           }}
         >
-          <MaterialCommunityIcons name="database" size={16} color="#10B981" />
-          <Text style={{ flex: 1, marginLeft: 8, fontSize: 13, color: '#065F46', fontWeight: '500' }} numberOfLines={1}>
-            {selectedDatasetCount} dataset{selectedDatasetCount > 1 ? 's' : ''} selected
+          <MaterialIcons name="push-pin" size={14} color="#10B981" />
+          <Text style={{ flex: 1, marginLeft: 6, fontSize: 12, color: '#065F46', fontWeight: '500', fontFamily: 'Inter Display' }} numberOfLines={1}>
+            {selectedDatasetCount} dataset{selectedDatasetCount > 1 ? 's' : ''}
           </Text>
-          <TouchableOpacity onPress={clearAllSelectedDatasets}>
-            <MaterialCommunityIcons name="close" size={18} color="#6B7280" />
+          <TouchableOpacity onPress={clearAllSelectedDatasets} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <MaterialIcons name="close" size={16} color="#6B7280" />
           </TouchableOpacity>
         </View>
       )}
 
+      {/* Chat Input Container - Figma Design */}
       <View 
         style={{ 
-          minHeight: 56, 
-          maxHeight: 150,
+          minHeight: 48, 
+          maxHeight: 120,
           flexDirection: 'row',
           alignItems: 'center',
-          backgroundColor: isEditorDisabled ? '#f9fafb' : '#ffffff',
+          backgroundColor: '#FFFFFF',
           borderWidth: 1,
-          borderColor: '#e5e7eb',
-          borderRadius: 9999,
-          paddingHorizontal: 16,
-          paddingVertical: 12,
-          opacity: isEditorDisabled ? 0.6 : 1
+          borderColor: '#E5E7EB',
+          borderRadius: 24,
+          paddingHorizontal: 12,
+          paddingVertical: 8,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.05,
+          shadowRadius: 2,
+          elevation: 1,
         }}
       >
-        {/* Dataset Selector Button */}
-        <TouchableOpacity
-          onPress={() => setShowDatasetSelector(true)}
-          disabled={isEditorDisabled}
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: 16,
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: selectedDatasetCount > 0 ? '#F0FDF4' : '#f3f4f6',
-            marginRight: 4,
-          }}
-        >
-          <MaterialCommunityIcons 
-            name="database" 
-            size={16} 
-            color={selectedDatasetCount > 0 ? "#10B981" : "#6B7280"} 
-          />
-        </TouchableOpacity>
-
-        {/* Experiment Selector Button */}
+        {/* @ Button (Experiment Selector) */}
         <TouchableOpacity
           onPress={() => setShowExperimentSelector(true)}
           disabled={isEditorDisabled}
@@ -192,30 +180,74 @@ const LandingInputSection = ({
             borderRadius: 16,
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: selectedAnalysisExperiment ? '#EFF6FF' : '#f3f4f6',
-            marginRight: 8,
+            backgroundColor: selectedAnalysisExperiment ? '#EFF6FF' : 'transparent',
+            marginRight: 6,
           }}
+          hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
         >
-          <MaterialCommunityIcons 
-            name="flask" 
-            size={16} 
-            color={selectedAnalysisExperiment ? "#3B82F6" : "#6B7280"} 
+          <MaterialIcons 
+            name="alternate-email" 
+            size={20} 
+            color={selectedAnalysisExperiment ? "#0F8BFF" : "#999999"} 
           />
         </TouchableOpacity>
 
-        {/* Editor Area */}
-        <View style={{ flex: 1, marginRight: 12 }}>
+        {/* Dataset Button (Paperclip/Attachment Icon) */}
+        <TouchableOpacity
+          onPress={() => setShowDatasetSelector(true)}
+          disabled={isEditorDisabled}
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 16,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: selectedDatasetCount > 0 ? '#F0FDF4' : 'transparent',
+            marginRight: 8,
+          }}
+          hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+        >
+          <MaterialIcons 
+            name="attach-file" 
+            size={18} 
+            color={selectedDatasetCount > 0 ? "#10B981" : "#808080"} 
+          />
+        </TouchableOpacity>
+
+        {/* Text Input Area */}
+        <View style={{ flex: 1, marginRight: 8 }}>
           <MentionEditor
             ref={inputRef}
             value={inputValue}
             onChange={setInputValue}
             onSend={handleSend}
-            placeholder="Ask me anything..."
+            placeholder="Ask anything..."
             editable={!isEditorDisabled}
             suggestions={suggestions}
             onMentionSelect={handleExperimentSelect}
           />
         </View>
+
+        {/* Mic Button */}
+        <TouchableOpacity
+          disabled={isEditorDisabled}
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 16,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: '#F0F0F0',
+            marginRight: 6,
+          }}
+          hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+        >
+          <MaterialIcons 
+            name="mic" 
+            size={18} 
+            color="#666666" 
+          />
+        </TouchableOpacity>
 
         {/* Send Button */}
         <TouchableOpacity
@@ -227,16 +259,18 @@ const LandingInputSection = ({
             borderRadius: 16,
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: hasText && !isEditorDisabled && canSendMessageProp ? '#10B981' : '#f3f4f6',
+            backgroundColor: '#0F8BFF',
+            opacity: hasText && !isEditorDisabled && canSendMessageProp ? 1 : 0.5,
           }}
+          hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
         >
           {isWaitingForAI ? (
-            <ActivityIndicator size="small" color="#10B981" />
+            <ActivityIndicator size="small" color="#FFFFFF" />
           ) : (
-            <MaterialCommunityIcons 
-              name="arrow-up" 
-              size={20} 
-              color={hasText && !isEditorDisabled && canSendMessageProp ? "white" : "#9ca3af"} 
+            <MaterialIcons 
+              name="arrow-upward" 
+              size={18} 
+              color="#FFFFFF" 
             />
           )}
         </TouchableOpacity>
@@ -246,7 +280,10 @@ const LandingInputSection = ({
       <ExperimentSelector
         visible={showExperimentSelector}
         onClose={() => setShowExperimentSelector(false)}
-        onSelectExperiment={handleExperimentSelect}
+        onSelectExperiment={(exp) => {
+          handleExperimentSelect(exp);
+          setShowExperimentSelector(false);
+        }}
       />
 
       {/* Dataset Selector Modal */}

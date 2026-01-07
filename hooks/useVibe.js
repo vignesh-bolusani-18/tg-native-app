@@ -220,7 +220,16 @@ export const useVibe = () => {
   };
 
   const addMessage = async (message) => {
+    console.log('📥 [useVibe.addMessage] START');
+    console.log('   message type:', message?.type);
+    console.log('   message content:', message?.content?.substring(0, 50));
+    console.log('   conversationId:', message?.conversationId);
+    console.log('   safeCurrentConversationId:', safeCurrentConversationId);
+    console.log('   currentMessages.length:', currentMessages?.length);
+    
     await dispatch(AddMessage(message));
+    console.log('✅ [useVibe.addMessage] AddMessage dispatched');
+    
     // ⭐ MATCHES app_ref: Rename conversation on first message
     // Only rename if conversation exists on backend (in conversation_list)
     if (currentMessages.length === 0) {
@@ -229,6 +238,7 @@ export const useVibe = () => {
       const existsOnBackend = conversation_list?.some(
         (c) => c.conversationID === safeCurrentConversationId
       );
+      console.log('   existsOnBackend:', existsOnBackend);
       if (existsOnBackend) {
         dispatch(renameConversationAction({
           conversationID: safeCurrentConversationId,
@@ -250,6 +260,7 @@ export const useVibe = () => {
           experiments: {},
           conversation_name: message.content.slice(0, 50),
         };
+        console.log('   Creating conversation with payload:', tokenPayload);
         
         try {
           await dispatch(addNewConversationAction(tokenPayload));
@@ -266,6 +277,7 @@ export const useVibe = () => {
         }));
       }
     }
+    console.log('📥 [useVibe.addMessage] COMPLETE');
   };
 
   // Single function to manage isWaitingForAI state (Web Logic)

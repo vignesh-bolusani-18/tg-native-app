@@ -10,6 +10,7 @@ const InputSection = ({
   hasConversation,
   canSendMessage,
   isWaitingForAI,
+  hideExperimentDatasetIcons = false,
 }) => {
   // Logic from original: Always show LandingInputSection for now 
   // (Original had `if (true)` which forces LandingInputSection)
@@ -19,6 +20,7 @@ const InputSection = ({
       onStartChat={onStartChat}
       canSendMessage={canSendMessage}
       isWaitingForAI={isWaitingForAI}
+      hideExperimentDatasetIcons={hideExperimentDatasetIcons}
     />
   );
 };
