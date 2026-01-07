@@ -41,3 +41,8 @@ app-example
 # generated native folders
 /ios
 /android
+# =====================
+# Secrets (NEVER COMMIT)
+# =====================
+*.json
+app_ref/src/utils/Data Connections/Google Sheet/Credentials/
