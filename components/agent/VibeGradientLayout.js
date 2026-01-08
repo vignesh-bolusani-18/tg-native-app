@@ -1,7 +1,9 @@
 import { Slot } from "expo-router";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
+  Animated,
   Dimensions,
+  Easing,
   LayoutAnimation,
   Platform,
   TouchableOpacity,
@@ -63,6 +65,62 @@ const VibeGradientLayout = ({ children }) => {
 
   const { discardExperiment: discardExperimentModule } = useModule();
   const { discardExperiment: discardExperimentExperiment } = useExperiment();
+
+  // Animation for conversation sidebar (right side)
+  const [shouldRenderSidebar, setShouldRenderSidebar] = useState(false);
+  const sidebarSlideAnim = useRef(new Animated.Value(300)).current;
+  const sidebarFadeAnim = useRef(new Animated.Value(0)).current;
+
+  // Keep sidebar mounted during close animation
+  useEffect(() => {
+    if (isSidebarOpen) {
+      setShouldRenderSidebar(true);
+    }
+  }, [isSidebarOpen]);
+
+  // Animate sidebar when isSidebarOpen changes - smooth like menu sidebar
+  useEffect(() => {
+    if (isSidebarOpen) {
+      // Reset to start position before animating
+      sidebarSlideAnim.setValue(300);
+      sidebarFadeAnim.setValue(0);
+      
+      // Opening animation - smooth slide from right
+      Animated.parallel([
+        Animated.timing(sidebarSlideAnim, {
+          toValue: 0,
+          duration: 500,
+          easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+          useNativeDriver: true,
+        }),
+        Animated.timing(sidebarFadeAnim, {
+          toValue: 1,
+          duration: 400,
+          easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else if (shouldRenderSidebar) {
+      // Closing animation - smooth slide to right
+      Animated.parallel([
+        Animated.timing(sidebarSlideAnim, {
+          toValue: 300,
+          duration: 400,
+          easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+          useNativeDriver: true,
+        }),
+        Animated.timing(sidebarFadeAnim, {
+          toValue: 0,
+          duration: 350,
+          easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        // Unmount after animation completes
+        setShouldRenderSidebar(false);
+      });
+    }
+  }, [isSidebarOpen, sidebarSlideAnim, sidebarFadeAnim, shouldRenderSidebar]);
 
   const handleDiscardExperiment = () => {
     if (oldFlowModules.includes(langgraphState?.determined_module)) {
@@ -269,8 +327,8 @@ const VibeGradientLayout = ({ children }) => {
         </View>
 
         {/* Conversation Sidebar Overlay (RIGHT) - Only on mobile when open */}
-        {isMobile && isSidebarOpen && (
-          <View style={{
+        {isMobile && shouldRenderSidebar && (
+          <Animated.View style={{
             position: 'absolute',
             top: 0,
             left: 0,
@@ -278,6 +336,7 @@ const VibeGradientLayout = ({ children }) => {
             bottom: 0,
             backgroundColor: 'rgba(0, 0, 0, 0.4)',
             zIndex: 1000,
+            opacity: sidebarFadeAnim,
           }}>
             <View style={{ flex: 1, flexDirection: 'row' }}>
               <TouchableOpacity 
@@ -285,7 +344,7 @@ const VibeGradientLayout = ({ children }) => {
                 activeOpacity={1}
                 onPress={() => setIsSidebarOpen(false)}
               />
-              <View style={{
+              <Animated.View style={{
                 width: 280,
                 marginRight: 12,
                 marginTop: 12,
@@ -297,6 +356,7 @@ const VibeGradientLayout = ({ children }) => {
                 shadowOpacity: 0.15,
                 shadowRadius: 12,
                 elevation: 8,
+                transform: [{ translateX: sidebarSlideAnim }],
               }}>
                 <ConversationSidebar
                   conversationList={conversation_list}
@@ -306,9 +366,9 @@ const VibeGradientLayout = ({ children }) => {
                   onRenameConversation={handleRenameConversation}
                   onDeleteConversation={handleDeleteConversation}
                 />
-              </View>
+              </Animated.View>
             </View>
-          </View>
+          </Animated.View>
         )}
 
       </View>

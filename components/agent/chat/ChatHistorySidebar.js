@@ -6,11 +6,49 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
+  ActivityIndicator,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import TGIcon from '../../../assets/images/tg_logo6.svg';
 
-const ChatHistorySidebar = ({ conversations = [], currentConversationId, onSelectConversation, onCreateNew, onClose }) => {
+const ChatHistorySidebar = ({ conversations = [], currentConversationId, onSelectConversation, onCreateNew, onClose, isLoading = false }) => {
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Debug: Log ALL conversations to check data structure
+  console.log('📋 [ChatHistorySidebar] ====== RENDER ======');
+  console.log('📋 [ChatHistorySidebar] Conversations count:', conversations.length);
+  console.log('📋 [ChatHistorySidebar] isLoading:', isLoading);
+  conversations.forEach((conv, idx) => {
+    console.log(`📋 [ChatHistorySidebar] Conv[${idx}]:`, {
+      id: conv.id?.substring(0, 8),
+      title: conv.title,
+      updatedAt: conv.updatedAt,
+      createdAt: conv.createdAt,
+      hasUpdatedAt: !!conv.updatedAt,
+    });
+  });
+
+  // Helper to format timestamp to dd.mm.yy format
+  const formatTime = (dateString) => {
+    console.log('🕐 [formatTime] Input:', dateString);
+    if (!dateString) {
+      console.log('🕐 [formatTime] No dateString, returning empty');
+      return '';
+    }
+    const date = new Date(String(dateString).replace(/ at /, " "));
+    if (isNaN(date.getTime())) {
+      console.log('🕐 [formatTime] Invalid date, returning empty');
+      return '';
+    }
+    
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = String(date.getFullYear()).slice(-2);
+    
+    const result = `${day}.${month}.${year}`;
+    console.log('🕐 [formatTime] Output:', result);
+    return result;
+  };
 
   // Helper to categorize conversations by date
   const categorizeConversations = (params) => {
@@ -106,7 +144,14 @@ const ChatHistorySidebar = ({ conversations = [], currentConversationId, onSelec
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 20 }}
         >
-          {!hasConversations ? (
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <View style={styles.loadingContent}>
+                <TGIcon width={32} height={32} />
+                <Text style={styles.loadingText}>Loading chats...</Text>
+              </View>
+            </View>
+          ) : !hasConversations ? (
             <Text style={styles.emptyText}>No chats found</Text>
           ) : (
             sections.map(sectionName => {
@@ -129,15 +174,20 @@ const ChatHistorySidebar = ({ conversations = [], currentConversationId, onSelec
                       }}
                       activeOpacity={0.7}
                     >
-                      <Text 
-                        style={[
-                          styles.chatItemText,
-                          currentConversationId === conversation.id && styles.chatItemTextActive
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {conversation.title || 'Sample chat'}
-                      </Text>
+                      <View style={styles.chatItemRow}>
+                        <Text 
+                          style={[
+                            styles.chatItemText,
+                            currentConversationId === conversation.id && styles.chatItemTextActive
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {conversation.title || 'Sample chat'}
+                        </Text>
+                        <Text style={styles.timestampText}>
+                          {formatTime(conversation.updatedAt || conversation.createdAt)}
+                        </Text>
+                      </View>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -227,12 +277,41 @@ const styles = StyleSheet.create({
   chatList: {
     flex: 1,
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  loadingContent: {
+    alignItems: 'center',
+    gap: 16,
+  },
+  loadingText: {
+    fontFamily: 'Inter Display',
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#666666',
+  },
+  emptyText: {
+    fontFamily: 'Inter Display',
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#999999',
+    textAlign: 'center',
+    marginTop: 40,
+  },
   chatItem: {
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 8,
     paddingVertical: 6,
     borderRadius: 6,
     marginBottom: 4,
+  },
+  chatItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   chatItemActive: {
     backgroundColor: '#F0F0F0',
@@ -243,17 +322,17 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     lineHeight: 24,
     color: '#595959',
+    flex: 1,
   },
   chatItemTextActive: {
     color: '#404040',
   },
-  emptyText: {
+  timestampText: {
     fontFamily: 'Inter Display',
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 11,
+    fontWeight: '400',
     color: '#999999',
-    textAlign: 'center',
-    marginTop: 20,
+    flexShrink: 0,
   },
 });
 

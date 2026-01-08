@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Animated, Dimensions, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Animated, Dimensions, TouchableOpacity, StyleSheet, Easing } from 'react-native';
 
 const AnimatedSidebarModal = ({ visible, onClose, children, side = 'left' }) => {
   const [shouldRender, setShouldRender] = useState(visible);
@@ -21,37 +21,51 @@ const AnimatedSidebarModal = ({ visible, onClose, children, side = 'left' }) => 
     const hiddenPos = side === 'left' ? -300 : 300;
     const shownPos = 0;
 
+    console.log('[AnimatedSidebarModal] Animation triggered:', { visible, side, hiddenPos, shownPos, shouldRender });
+
     if (visible) {
       // Force reset to start position to prevent "fast" opening/jumping
       slideAnim.setValue(hiddenPos);
+      fadeAnim.setValue(0);
       
-      // Animate IN with smooth easing (matches menu sidebar)
+      console.log('[AnimatedSidebarModal] Starting OPEN animation, duration: 600ms');
+      
+      // Animate IN with smooth bezier easing - much slower and smoother
       Animated.parallel([
         Animated.timing(slideAnim, {
           toValue: shownPos,
-          duration: 500,
+          duration: 600,
+          easing: Easing.bezier(0.25, 0.1, 0.25, 1),
           useNativeDriver: true,
         }),
         Animated.timing(fadeAnim, {
           toValue: 1,
-          duration: 500,
+          duration: 600,
+          easing: Easing.bezier(0.25, 0.1, 0.25, 1),
           useNativeDriver: true,
         }),
-      ]).start();
+      ]).start(() => {
+        console.log('[AnimatedSidebarModal] OPEN animation COMPLETE');
+      });
     } else if (shouldRender) {
-      // Animate OUT (matches menu sidebar timing)
+      console.log('[AnimatedSidebarModal] Starting CLOSE animation, duration: 500ms');
+      
+      // Animate OUT with smooth bezier easing - slower and smoother
       Animated.parallel([
         Animated.timing(slideAnim, {
           toValue: hiddenPos,
-          duration: 400,
+          duration: 500,
+          easing: Easing.bezier(0.25, 0.1, 0.25, 1),
           useNativeDriver: true,
         }),
         Animated.timing(fadeAnim, {
           toValue: 0,
-          duration: 400,
+          duration: 500,
+          easing: Easing.bezier(0.25, 0.1, 0.25, 1),
           useNativeDriver: true,
         }),
       ]).start(() => {
+        console.log('[AnimatedSidebarModal] CLOSE animation COMPLETE, unmounting');
         // Unmount after animation
         setShouldRender(false);
       });

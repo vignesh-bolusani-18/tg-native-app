@@ -11,10 +11,86 @@ export default function ConversationSidebar({
 }) {
   const [searchQuery, setSearchQuery] = useState('');
 
-  const filteredConversations = (conversationList || []).filter(conv => {
-    const title = conv.conversation_name || conv.title || "New Chat";
-    return title.toLowerCase().includes(searchQuery.toLowerCase());
-  });
+  // Parse date string like "Jan 8, 2026, at 5:51:33 AM"
+  const parseDateString = (dateString) => {
+    if (!dateString) return null;
+    
+    // Replace ", at " with ", " to make it parseable
+    // "Jan 8, 2026, at 5:51:33 AM" -> "Jan 8, 2026, 5:51:33 AM"
+    const cleanString = String(dateString).replace(/,\s*at\s*/g, ", ");
+    
+    console.log('[parseDate] Input:', dateString, '-> Clean:', cleanString);
+    
+    const parsedDate = new Date(cleanString);
+    const isValid = !isNaN(parsedDate.getTime());
+    
+    console.log('[parseDate] Valid:', isValid, 'Time:', parsedDate.getTime());
+    
+    return isValid ? parsedDate : null;
+  };
+
+  // Simple date formatter - extracts dd.mm.yy from date string
+  const formatTime = (dateStr) => {
+    if (!dateStr) return '';
+    
+    const date = parseDateString(dateStr);
+    if (!date) {
+      console.log('[formatTime] Failed to parse:', dateStr);
+      return '';
+    }
+    
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = String(date.getFullYear()).slice(-2);
+    const formatted = `${day}.${month}.${year}`;
+    
+    console.log('[formatTime] Formatted result:', formatted);
+    return formatted;
+  };
+
+  // Convert date to timestamp for proper numeric sorting
+  const getTimestamp = (dateInput) => {
+    if (!dateInput) return 0;
+    
+    // If already a number, use it directly
+    if (typeof dateInput === 'number') {
+      return dateInput;
+    }
+    
+    // Parse the date string
+    const date = parseDateString(dateInput);
+    const timeMs = date ? date.getTime() : 0;
+    
+    console.log('[getTimestamp] Input:', dateInput, '-> Time:', timeMs);
+    
+    return timeMs;
+  };
+
+  // Filter and sort conversations - most recent first based on updatedAt
+  const filteredConversations = (conversationList || [])
+    .filter(conv => {
+      const title = conv.conversation_name || conv.title || "New Chat";
+      return title.toLowerCase().includes(searchQuery.toLowerCase());
+    })
+    .sort((a, b) => {
+      // Get timestamps for both conversations
+      const timeA = getTimestamp(a.updatedAt || a.createdAt);
+      const timeB = getTimestamp(b.updatedAt || b.createdAt);
+      
+      // Sort by descending (most recent first)
+      return timeB - timeA;
+    });
+
+  // Debug logging - show ALL conversations sorted, not just first 3
+  console.log('[ConversationSidebar] Total conversations:', filteredConversations.length);
+  if (filteredConversations.length > 0) {
+    console.log('[ConversationSidebar] FULL first conv object:', JSON.stringify(filteredConversations[0], null, 2));
+    console.log('[ConversationSidebar] ALL conversations sorted (most recent first):');
+    filteredConversations.forEach((conv, i) => {
+      const timestamp = formatTime(conv.updatedAt || conv.createdAt);
+      console.log(`  ${i + 1}. "${conv.conversation_name}" | updatedAt: ${conv.updatedAt} | formatted: ${timestamp}`);
+    });
+  }
 
   return (
     <View style={styles.container}>
@@ -60,6 +136,8 @@ export default function ConversationSidebar({
           ) : (
             filteredConversations.map((conversation) => {
               const isSelected = conversation.conversationID === currentConversationId;
+              const timestamp = formatTime(conversation.updatedAt || conversation.createdAt);
+              
               return (
                 <TouchableOpacity
                   key={conversation.conversationID}
@@ -67,12 +145,19 @@ export default function ConversationSidebar({
                   onPress={() => onSelectConversation(conversation)}
                   activeOpacity={0.7}
                 >
-                  <Text 
-                    style={[styles.itemText, isSelected && styles.selectedItemText]}
-                    numberOfLines={1}
-                  >
-                    {conversation.conversation_name || conversation.title || 'Sample chat'}
-                  </Text>
+                  <View style={styles.itemRow}>
+                    <Text 
+                      style={[styles.itemText, isSelected && styles.selectedItemText]}
+                      numberOfLines={1}
+                    >
+                      {conversation.conversation_name || conversation.title || 'Sample chat'}
+                    </Text>
+                    {timestamp && (
+                      <Text style={styles.timestampText}>
+                        {timestamp}
+                      </Text>
+                    )}
+                  </View>
                 </TouchableOpacity>
               );
             })
@@ -172,6 +257,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(245, 245, 245, 0.8)',
   },
   itemText: {
+    flex: 1,
     fontFamily: 'Inter Display',
     fontSize: 14,
     fontWeight: '500',
@@ -188,5 +274,18 @@ const styles = StyleSheet.create({
     color: '#999999',
     textAlign: 'center',
     marginTop: 20,
+  },
+  itemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  timestampText: {
+    fontFamily: 'Inter Display',
+    fontSize: 11,
+    fontWeight: '400',
+    color: '#999999',
+    flexShrink: 0,
+    marginLeft: 8,
   },
 });

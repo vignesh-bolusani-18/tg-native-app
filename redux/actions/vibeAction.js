@@ -242,7 +242,16 @@ export const loadConversationListAction = (userInfo, retryCount = 0) => async (d
     
     console.log("✅ Got conversations response:", typeof response, Array.isArray(response) ? response.length : "object");
     
-    // console.log("response: ", response);
+    // DEBUG: Log first raw conversation from backend to see exact field names
+    if (Array.isArray(response) && response.length > 0) {
+      console.log("🔍 RAW Backend first conversation:", JSON.stringify(response[0], null, 2));
+      console.log("🔍 ALL field keys in first conversation:", Object.keys(response[0]));
+      // Check for any date-like fields
+      const dateFields = Object.keys(response[0]).filter(k => 
+        k.toLowerCase().includes('date') || k.toLowerCase().includes('time') || k.toLowerCase().includes('updated') || k.toLowerCase().includes('created')
+      );
+      console.log("🔍 Date-related fields found:", dateFields);
+    }
 
     // Verify security and get invitation data
     const verifiedConversations = await verifyConversationsResponse(
@@ -370,6 +379,14 @@ export const loadConversationListAction = (userInfo, retryCount = 0) => async (d
     );
 
     console.log(`✅ Loaded ${activeConversation.length} conversations from backend`);
+    
+    // DEBUG: Log what will be saved to Redux
+    if (activeConversation.length > 0) {
+      console.log("📝 REDUX STORED: First conversation object:", JSON.stringify(activeConversation[0], null, 2));
+      console.log("📝 REDUX STORED: First conversation updatedAt:", activeConversation[0].updatedAt);
+      console.log("📝 REDUX STORED: First conversation createdAt:", activeConversation[0].createdAt);
+    }
+    
     dispatch(loadConversations(activeConversation));
   } catch (error) {
     console.error("❌ loadConversationListAction Error:", error.message);

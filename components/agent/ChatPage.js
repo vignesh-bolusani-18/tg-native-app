@@ -910,23 +910,6 @@ const ChatPage = () => {
       <AnimatedSidebarModal visible={isAppMenuOpen} onClose={() => setIsAppMenuOpen(false)} side="left">
         <AppSidebar onClose={() => setIsAppMenuOpen(false)} />
       </AnimatedSidebarModal>
-
-      {/* Chat History Sidebar (RIGHT) - Animated reuse */}
-      <AnimatedSidebarModal visible={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} side="right">
-        <ChatHistorySidebar 
-          conversations={Object.values(conversations || {})}
-          currentConversationId={currentConversationId}
-          onSelectConversation={(id) => {
-            switchConversation(id);
-            setIsSidebarOpen(false);
-          }}
-          onCreateNew={() => {
-            createNewChat("supply_chain_manager_workflow", "New Chat");
-            setIsSidebarOpen(false);
-          }}
-          onClose={() => setIsSidebarOpen(false)}
-        />
-      </AnimatedSidebarModal>
     </View>
   );
 };
