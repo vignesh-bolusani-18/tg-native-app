@@ -17,6 +17,7 @@ const LandingInputSection = ({
   onSendMessage,
   canSendMessage: canSendMessageProp,
   isWaitingForAI,
+  onStopGeneration, // NEW: Function to stop AI generation
 }) => {
   const [inputValue, setInputValue] = useState("");
   const [showExperimentSelector, setShowExperimentSelector] = useState(false);
@@ -249,23 +250,35 @@ const LandingInputSection = ({
           />
         </TouchableOpacity>
 
-        {/* Send Button */}
+        {/* Send / Stop Button */}
         <TouchableOpacity
-          onPress={() => handleSend(inputValue)}
-          disabled={isSendDisabled || !canSendMessageProp}
+          onPress={() => {
+            if (isWaitingForAI && onStopGeneration) {
+              // Stop AI generation
+              onStopGeneration();
+            } else {
+              // Send message
+              handleSend(inputValue);
+            }
+          }}
+          disabled={!isWaitingForAI && (isSendDisabled || !canSendMessageProp)}
           style={{
             width: 32,
             height: 32,
             borderRadius: 16,
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: '#0F8BFF',
-            opacity: hasText && !isEditorDisabled && canSendMessageProp ? 1 : 0.5,
+            backgroundColor: isWaitingForAI ? '#EF4444' : '#0F8BFF',
+            opacity: isWaitingForAI || (hasText && !isEditorDisabled && canSendMessageProp) ? 1 : 0.5,
           }}
           hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
         >
           {isWaitingForAI ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
+            <MaterialIcons 
+              name="stop" 
+              size={18} 
+              color="#FFFFFF" 
+            />
           ) : (
             <MaterialIcons 
               name="arrow-upward" 

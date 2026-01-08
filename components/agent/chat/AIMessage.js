@@ -25,7 +25,7 @@ import TagsSection from '../actions/TagsSection';
 import AIMessageDataTable from './AIMessageDataTable';
 
 // Assets
-const TGLogo = require('../../../assets/images/icon.png');
+import TGLogo from '../../../assets/images/tg_logo6.svg';
 
 /**
  * ⭐ MATCHES tg-application: Render bold text (**text**)
@@ -294,10 +294,7 @@ export default function AIMessage({ message, toolsUsed = [], isStreaming = false
 
   return (
     <View style={styles.container}>
-      {/* AI Avatar */}
-      <View style={styles.avatar}>
-        <Image source={TGLogo} style={styles.avatarImage} resizeMode="contain" />
-      </View>
+      {/* AI Avatar - Removed */}
       
       <View style={styles.messageCard}>
         {/* Tool Calls Section */}
@@ -452,12 +449,12 @@ const styles = StyleSheet.create({
   },
   messageCard: {
     flex: 1,
-    maxWidth: '85%',
+    maxWidth: '100%',
     backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    borderRadius: 16,
-    borderTopLeftRadius: 4, // Tail effect pointing to avatar
+    borderRadius: 8,
+    // borderTopLeftRadius: 4, // Tail effect removed
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },

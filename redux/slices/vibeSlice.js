@@ -1180,6 +1180,25 @@ const vibeSlice = createSlice({
       
       state.conversations[conversationID] = loadedConversation;
       state.currentConversationId = conversationID;
+
+      // ⭐ UPDATE conversation_list timestamp and move to top for sorting
+      const formattedTimestamp = formatDate(Date.now()); // Use same format as other timestamps
+      
+      // Find and update the conversation in conversation_list
+      const convIndex = state.conversation_list.findIndex(
+        (conv) => conv.conversationID === conversationID
+      );
+      
+      if (convIndex !== -1) {
+        // Update the timestamp
+        state.conversation_list[convIndex].updatedAt = formattedTimestamp;
+        
+        // Move to the top of the list (most recent first)
+        const [selectedConv] = state.conversation_list.splice(convIndex, 1);
+        state.conversation_list.unshift(selectedConv);
+        
+        console.log("selectConversation: Updated conversation_list timestamp and moved to top");
+      }
     },
     setIsSidebarOpenReducer: (state, action) => {
       state.isSidebarOpen = action.payload;

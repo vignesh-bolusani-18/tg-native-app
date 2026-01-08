@@ -4,13 +4,14 @@
  */
 
 import { MaterialIcons } from '@expo/vector-icons';
-import { documentDirectory, writeAsStringAsync } from 'expo-file-system';
-import * as FileSystem from 'expo-file-system';
+import { documentDirectory, downloadAsync, writeAsStringAsync, EncodingType } from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import React, { useState } from 'react';
 import { Alert, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { apiConfig } from '../../../utils/apiConfig';
 import { generateToken } from '../../../utils/jwtUtils';
+import { getAuthToken } from '../../../redux/actions/authActions';
+import { callQueryEngineDownload } from '../../../utils/queryEngine';
 import useAuth from '../../../hooks/useAuth';
 import { useSelector } from 'react-redux';
 
@@ -106,6 +107,7 @@ export default function AIMessageDataTable({
   };
 
   // Handle S3 Parquet file download using Query Engine presigned URL
+  // Matches app_ref/src/components/TanStackCustomTable.js -> fetchReportBlob
   const handleS3Download = async () => {
     if (!hasS3Data || !dataPath) {
       Alert.alert('Error', 'S3 data path not available');
@@ -114,44 +116,27 @@ export default function AIMessageDataTable({
 
     setDownloading(true);
     try {
-      const token = userData?.token;
-      if (!token) {
-        throw new Error('Authentication token not found');
-      }
-
-      // Build download token payload following tg-application pattern
-      const downloadTokenPayload = {
+      // Build token payload EXACTLY like web app (TanStackCustomTable.js line 999-1004)
+      // The callQueryEngineDownload function will enrich this with proper filterData structure
+      const tokenPayload = {
         filePath: dataPath,
-        fileName: parseDatasetPath(dataPath),
+        fileName: parseDatasetPath(dataPath).replace(".csv", ""),
         companyName: currentCompany?.companyName || 'default',
-        filterData: null,
-        totalRows: dataTotalRows,
+        filterData: {}, // Empty object - callQueryEngineDownload will transform this
+        paginationData: null,
+        sortingData: null,
       };
 
-      // Generate JWT-signed download token
-      const downloadToken = await generateToken(downloadTokenPayload, token);
-      const timestamp = Date.now();
+      // Use callQueryEngineDownload which handles:
+      // 1. Getting auth token
+      // 2. Building proper filterData structure with fallbacks
+      // 3. Generating signed JWT token
+      // 4. Calling query engine /download endpoint
+      const { downloadUrl: presignedUrl } = await callQueryEngineDownload(tokenPayload);
 
-      // Request presigned URL from query engine
-      const queryEngineBaseUrl = apiConfig.queryEngineAPIBaseURL || 'https://query-engine.truegradient.ai';
-      const downloadUrl = `${queryEngineBaseUrl}/download?t=${timestamp}`;
-
-      const response = await fetch(downloadUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'x-api-key': apiConfig.queryEngineAPIKey,
-        },
-        body: JSON.stringify({ downloadToken }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to get presigned URL: ${response.status} ${errorText}`);
+      if (!presignedUrl) {
+        throw new Error('No download URL returned from the API');
       }
-
-      const { downloadUrl: presignedUrl } = await response.json();
 
       // Fetch the actual file from presigned URL
       if (Platform.OS === 'web') {
@@ -160,7 +145,7 @@ export default function AIMessageDataTable({
           throw new Error(`Failed to download file: ${fileResponse.status}`);
         }
         const blob = await fileResponse.blob();
-        const fileName = `${parseDatasetPath(dataPath)}.parquet`;
+        const fileName = `${parseDatasetPath(dataPath)}.csv`;
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
@@ -170,15 +155,15 @@ export default function AIMessageDataTable({
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
       } else {
-        // Mobile download using expo-file-system downloadAsync
-        const fileName = `${parseDatasetPath(dataPath)}.parquet`;
+        // Mobile download using expo-file-system legacy API
+        const fileName = `${parseDatasetPath(dataPath)}.csv`;
         const fileUri = `${documentDirectory}${fileName}`;
-        const downloadResult = await FileSystem.downloadAsync(presignedUrl, fileUri);
+        const downloadResult = await downloadAsync(presignedUrl, fileUri);
 
         if (await Sharing.isAvailableAsync()) {
           await Sharing.shareAsync(downloadResult.uri, {
-            mimeType: 'application/octet-stream',
-            dialogTitle: 'Download Parquet File',
+            mimeType: 'text/csv',
+            dialogTitle: 'Download CSV File',
           });
         } else {
           Alert.alert('Success', `File saved to: ${downloadResult.uri}`);
@@ -211,10 +196,10 @@ export default function AIMessageDataTable({
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
       } else {
-        // Mobile download using expo-file-system and expo-sharing
+        // Mobile download using expo-file-system legacy API and expo-sharing
         const fileUri = documentDirectory + fileName;
         await writeAsStringAsync(fileUri, csv, {
-          encoding: 'utf8',
+          encoding: EncodingType.UTF8,
         });
         
         if (await Sharing.isAvailableAsync()) {
@@ -341,7 +326,7 @@ export default function AIMessageDataTable({
             >
               {columns.map((col, cellIdx) => (
                 <View key={`cell-${rowIdx}-${cellIdx}`} style={styles.tableCell}>
-                  <Text style={styles.tableCellText} numberOfLines={2}>
+                  <Text style={styles.tableCellText}>
                     {safeStringify(row[col])}
                   </Text>
                 </View>
@@ -359,49 +344,55 @@ export default function AIMessageDataTable({
             {rows.length > MAX_ROWS && ` (limited from ${rows.length})`}
           </Text>
           
-          <View style={styles.paginationControls}>
-            {/* Previous */}
-            <TouchableOpacity 
-              style={[styles.pageButton, page === 1 && styles.pageButtonDisabled]}
-              onPress={() => setPage(p => Math.max(1, p - 1))}
-              disabled={page === 1}
+          <View style={{ height: 40 }}>
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.paginationControls}
             >
-              <Text style={styles.pageButtonText}>‹</Text>
-            </TouchableOpacity>
-            
-            {/* Page Numbers */}
-            {buildPageItems(page, totalPages).map((item, index) =>
-              item === '...' ? (
-                <View key={`ellipsis-${index}`} style={styles.ellipsis}>
-                  <Text style={styles.ellipsisText}>...</Text>
-                </View>
-              ) : (
-                <TouchableOpacity
-                  key={`page-${item}`}
-                  style={[
-                    styles.pageButton,
-                    item === page && styles.pageButtonActive
-                  ]}
-                  onPress={() => setPage(item)}
-                >
-                  <Text style={[
-                    styles.pageButtonText,
-                    item === page && styles.pageButtonTextActive
-                  ]}>
-                    {item}
-                  </Text>
-                </TouchableOpacity>
-              )
-            )}
-            
-            {/* Next */}
-            <TouchableOpacity 
-              style={[styles.pageButton, page === totalPages && styles.pageButtonDisabled]}
-              onPress={() => setPage(p => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-            >
-              <Text style={styles.pageButtonText}>›</Text>
-            </TouchableOpacity>
+              {/* Previous */}
+              <TouchableOpacity 
+                style={[styles.pageButton, page === 1 && styles.pageButtonDisabled]}
+                onPress={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+              >
+                <Text style={styles.pageButtonText}>‹</Text>
+              </TouchableOpacity>
+              
+              {/* Page Numbers */}
+              {buildPageItems(page, totalPages).map((item, index) =>
+                item === '...' ? (
+                  <View key={`ellipsis-${index}`} style={styles.ellipsis}>
+                    <Text style={styles.ellipsisText}>...</Text>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    key={`page-${item}`}
+                    style={[
+                      styles.pageButton,
+                      item === page && styles.pageButtonActive
+                    ]}
+                    onPress={() => setPage(item)}
+                  >
+                    <Text style={[
+                      styles.pageButtonText,
+                      item === page && styles.pageButtonTextActive
+                    ]}>
+                      {item}
+                    </Text>
+                  </TouchableOpacity>
+                )
+              )}
+              
+              {/* Next */}
+              <TouchableOpacity 
+                style={[styles.pageButton, page === totalPages && styles.pageButtonDisabled]}
+                onPress={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+              >
+                <Text style={styles.pageButtonText}>›</Text>
+              </TouchableOpacity>
+            </ScrollView>
           </View>
         </View>
       )}
@@ -523,8 +514,7 @@ const styles = StyleSheet.create({
   tableHeaderCell: {
     paddingVertical: 10,
     paddingHorizontal: 12,
-    minWidth: 100,
-    maxWidth: 200,
+    width: 160,
     borderRightWidth: 1,
     borderRightColor: '#e5e7eb',
   },
@@ -537,6 +527,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
+    minHeight: 40,
   },
   tableRowEven: {
     backgroundColor: '#f9fafb',
@@ -544,10 +535,10 @@ const styles = StyleSheet.create({
   tableCell: {
     paddingVertical: 8,
     paddingHorizontal: 12,
-    minWidth: 100,
-    maxWidth: 200,
+    width: 160,
     borderRightWidth: 1,
     borderRightColor: '#e5e7eb',
+    justifyContent: 'center',
   },
   tableCellText: {
     fontSize: 13,

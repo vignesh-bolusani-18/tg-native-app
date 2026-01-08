@@ -5,7 +5,7 @@
  */
 
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { documentDirectory, EncodingType, writeAsStringAsync } from 'expo-file-system';
+import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { Alert, StyleSheet, TouchableOpacity } from 'react-native';
 
@@ -24,11 +24,11 @@ export default function DownloadCSVButton({ data, fileName = 'table_data.csv' })
       ].join('\n');
 
       // Create file path
-      const fileUri = documentDirectory + fileName;
+      const fileUri = FileSystem.documentDirectory + fileName;
 
       // Write CSV file
-      await writeAsStringAsync(fileUri, csvContent, {
-        encoding: EncodingType.UTF8,
+      await FileSystem.writeAsStringAsync(fileUri, csvContent, {
+        encoding: FileSystem.EncodingType.UTF8,
       });
 
       // Share the file (mobile equivalent of download)

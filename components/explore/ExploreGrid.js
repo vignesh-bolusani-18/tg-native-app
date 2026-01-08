@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const TGIcon = require('../../assets/images/tg_logo6.svg');
+import TGIcon from '../../assets/images/tg_logo6.svg';
 
 const ExploreGrid = () => {
   const router = useRouter();
@@ -91,7 +91,7 @@ const ExploreGrid = () => {
       <View style={styles.header}>
         {/* Logo centered */}
         <View style={styles.logoContainer}>
-          <Image source={TGIcon} style={styles.logo} />
+          <TGIcon width={40} height={40} />
         </View>
 
         {/* User Avatar */}

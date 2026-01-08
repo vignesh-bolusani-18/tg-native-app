@@ -1,12 +1,12 @@
 import { StatusBar } from "expo-status-bar";
 import React, {
+    useCallback,
     useEffect,
     useRef,
     useState,
 } from "react";
 import {
     Animated,
-    Image,
     KeyboardAvoidingView,
     Platform,
     ScrollView,
@@ -27,13 +27,15 @@ import { oldFlowModules } from "../../utils/oldFlowModules";
 
 // Components
 import LoadingScreen from "../../components/LoadingScreen";
+import TGIcon from "../../assets/images/tg_logo6.svg";
 // import CompanyHeader from "./CompanyHeader";
 import ChatContainer from "./chat/ChatContainer";
-import ChatHistorySidebar from "./chat/ChatHistorySidebar";
 import AnalyzeExperimentInlinePopup from "./input/AnalyzeExperimentInlinePopup";
 import MentionEditor from "./input/MentionEditor";
 import ErrorDisplay from "./ui/ErrorDisplay";
 import AppSidebar from "./ui/AppSidebar";
+import ChatHistorySidebar from "./chat/ChatHistorySidebar";
+import AnimatedSidebarModal from "./ui/AnimatedSidebarModal";
 
 // Assets
 // const santaCap = require("../../../assets/Illustrations/Santa Cap.png");
@@ -156,7 +158,20 @@ const ChatPage = () => {
 
   const isWaitingForAI = currentConversation?.isWaitingForAI;
 
-  const { canSendMessage, sendQuery } = useWorkflowWebSocket();
+  const { canSendMessage, sendQuery, resetConversation } = useWorkflowWebSocket();
+  
+  // ⭐ Stop generation handler
+  const handleStopGeneration = useCallback(async () => {
+    console.log('🛑 [ChatPage] Stopping AI generation');
+    
+    // Reset waiting state immediately for better UX
+    setIsWaitingForAI(false);
+    
+    // Reset conversation to stop current execution
+    await resetConversation();
+    
+    console.log('✅ [ChatPage] AI generation stopped');
+  }, [resetConversation, setIsWaitingForAI]);
   
   // Force connection status for UI testing if needed, or rely on hook
   // If user is not authenticated, canSendMessage will be false.
@@ -354,17 +369,20 @@ const ChatPage = () => {
     // console.log('✅ [ChatPage.handleSendMessage] addMessage completed');
 
     setInputValue("");
+    
+    console.log('🔄 [ChatPage] Setting isWaitingForAI to TRUE');
+    console.log('   Before:', currentConversation?.isWaitingForAI);
     setIsWaitingForAI(true);
     
     const finalQuery = analysisSystemPrompt ? analysisSystemPrompt + "\n\n" + message : message;
-    // console.log('📡 [ChatPage.handleSendMessage] Calling sendQuery...');
-    // console.log('   finalQuery length:', finalQuery?.length);
+    console.log('📡 [ChatPage.handleSendMessage] Calling sendQuery...');
+    console.log('   finalQuery length:', finalQuery?.length);
 
     sendQuery({
       query: finalQuery,
       data: data,
     });
-    // console.log('✅ [ChatPage.handleSendMessage] sendQuery called');
+    console.log('✅ [ChatPage.handleSendMessage] sendQuery called');
     
     clearAllSelectedDatasets();
     // console.log('📤 [ChatPage.handleSendMessage] COMPLETE');
@@ -453,35 +471,32 @@ const ChatPage = () => {
           backgroundColor: '#FFF',
           borderBottomWidth: 1,
           borderBottomColor: '#F0F0F0',
-          marginTop: Platform.OS === 'android' ? 30 : 0
+          marginTop: 0,
+          paddingTop: 5,
       }}>
           {/* Left: App Menu */}
-          <TouchableOpacity onPress={() => setIsAppMenuOpen(true)} style={{ padding: 8 }}>
-             <MaterialIcons name="chevron-left" size={24} color="#333" />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', width: 80, justifyContent: 'flex-start' }}>
+            <TouchableOpacity onPress={() => setIsAppMenuOpen(true)} style={{ padding: 8, marginLeft: -8 }}>
+               <MaterialIcons name="menu" size={24} color="#333" />
+            </TouchableOpacity>
+          </View>
 
           {/* Center: Brand */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Image 
-                source={require('../../assets/images/tg_logo6.svg')} 
-                style={{ width: 28, height: 28 }}
-                resizeMode="contain"
-            />
-             <Text style={{ fontFamily: 'Inter Display', fontSize: 18, fontWeight: '600', color: '#333' }}>Agent</Text>
+          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            <TGIcon width={28} height={28} />
           </View>
 
           {/* Right: Actions */}
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', width: 80, justifyContent: 'flex-end' }}>
              <TouchableOpacity 
-                style={{ padding: 8, marginRight: 4 }}
+                style={{ padding: 8 }}
                 onPress={() => {
-                   // console.log('🆕 Creating new chat...');
                    createNewChat("supply_chain_manager_workflow", "New Chat");
                 }}
              >
                 <MaterialIcons name="add" size={24} color="#333" />
              </TouchableOpacity>
-             <TouchableOpacity onPress={() => setIsSidebarOpen(true)} style={{ padding: 8 }}>
+             <TouchableOpacity onPress={() => setIsSidebarOpen(true)} style={{ padding: 8, marginRight: -8 }}>
                 <MaterialIcons name="history" size={24} color="#333" />
              </TouchableOpacity>
           </View>
@@ -823,30 +838,51 @@ const ChatPage = () => {
                             >
                               <MaterialIcons name="mic" size={18} color="#666666" />
                             </TouchableOpacity>
-                            <TouchableOpacity
-                              onPress={() => {
-                                if (inputValue.trim() && canSendMessage && !isWaitingForAI) {
-                                  handleSendMessage(inputValue.trim());
-                                  setInputValue("");
-                                }
-                              }}
-                              disabled={!inputValue.trim() || !canSendMessage || isWaitingForAI}
-                              style={{
-                                backgroundColor: '#0F8BFF',
-                                paddingHorizontal: 12,
-                                paddingVertical: 4,
-                                borderRadius: 20,
-                                shadowColor: '#001F3B',
-                                shadowOffset: { width: 0, height: 4 },
-                                shadowOpacity: 0.1,
-                                shadowRadius: 8,
-                                elevation: 3,
-                                opacity: (!inputValue.trim() || !canSendMessage || isWaitingForAI) ? 0.5 : 1,
-                              }}
-                              activeOpacity={0.7}
-                            >
-                              <MaterialIcons name="arrow-forward" size={18} color="#FFFFFF" />
-                            </TouchableOpacity>
+                            {/* Toggle between Send and Stop button based on AI processing */}
+                            {isWaitingForAI ? (
+                              <TouchableOpacity
+                                onPress={handleStopGeneration}
+                                style={{
+                                  backgroundColor: '#EF4444',
+                                  paddingHorizontal: 12,
+                                  paddingVertical: 4,
+                                  borderRadius: 20,
+                                  shadowColor: '#7F1D1D',
+                                  shadowOffset: { width: 0, height: 4 },
+                                  shadowOpacity: 0.15,
+                                  shadowRadius: 8,
+                                  elevation: 3,
+                                }}
+                                activeOpacity={0.7}
+                              >
+                                <MaterialIcons name="stop" size={18} color="#FFFFFF" />
+                              </TouchableOpacity>
+                            ) : (
+                              <TouchableOpacity
+                                onPress={() => {
+                                  if (inputValue.trim() && canSendMessage) {
+                                    handleSendMessage(inputValue.trim());
+                                    setInputValue("");
+                                  }
+                                }}
+                                disabled={!inputValue.trim() || !canSendMessage}
+                                style={{
+                                  backgroundColor: '#0F8BFF',
+                                  paddingHorizontal: 12,
+                                  paddingVertical: 4,
+                                  borderRadius: 20,
+                                  shadowColor: '#001F3B',
+                                  shadowOffset: { width: 0, height: 4 },
+                                  shadowOpacity: 0.1,
+                                  shadowRadius: 8,
+                                  elevation: 3,
+                                  opacity: (!inputValue.trim() || !canSendMessage) ? 0.5 : 1,
+                                }}
+                                activeOpacity={0.7}
+                              >
+                                <MaterialIcons name="arrow-forward" size={18} color="#FFFFFF" />
+                              </TouchableOpacity>
+                            )}
                           </View>
                         </View>
                       </View>
@@ -870,85 +906,27 @@ const ChatPage = () => {
         </View>
       </KeyboardAvoidingView>
 
-      {/* App Menu Sidebar (LEFT) - Card Style with Gaps */}
-      {isAppMenuOpen && (
-        <View style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.4)',
-          zIndex: 1050,
-        }}>
-           <View style={{ flex: 1, flexDirection: 'row' }}>
-              <View style={{
-                width: 280,
-                marginLeft: 12,
-                marginTop: 12,
-                marginBottom: 12,
-                backgroundColor: 'white',
-                borderRadius: 12,
-                shadowColor: '#000',
-                shadowOffset: { width: 4, height: 0 },
-                shadowOpacity: 0.15,
-                shadowRadius: 12,
-                elevation: 8,
-              }}>
-                 <AppSidebar onClose={() => setIsAppMenuOpen(false)} />
-              </View>
-              <TouchableOpacity 
-                style={{ flex: 1 }}
-                activeOpacity={1}
-                onPress={() => setIsAppMenuOpen(false)}
-              />
-           </View>
-        </View>
-      )}
+      {/* App Menu Sidebar (LEFT) - Animated */}
+      <AnimatedSidebarModal visible={isAppMenuOpen} onClose={() => setIsAppMenuOpen(false)} side="left">
+        <AppSidebar onClose={() => setIsAppMenuOpen(false)} />
+      </AnimatedSidebarModal>
 
-      {/* Chat History Sidebar Overlay (RIGHT) */}
-      {isSidebarOpen && (
-        <View style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          zIndex: 1000,
-        }}>
-           <View style={{ flex: 1, flexDirection: 'row' }}>
-              <TouchableOpacity 
-                style={{ flex: 1 }}
-                activeOpacity={1}
-                onPress={() => setIsSidebarOpen(false)}
-              />
-              <View style={{
-                width: 300,
-                backgroundColor: 'white',
-                shadowColor: '#000',
-                shadowOffset: { width: -2, height: 0 },
-                shadowOpacity: 0.25,
-                shadowRadius: 8,
-                elevation: 5,
-              }}>
-                <ChatHistorySidebar
-                  conversations={Object.values(conversations || {})}
-                  currentConversationId={currentConversationId}
-                  onSelectConversation={(id) => {
-                    switchConversation(id);
-                    setIsSidebarOpen(false);
-                  }}
-                  onCreateNew={() => {
-                    createNewChat("supply_chain_manager_workflow", "New Chat");
-                    setIsSidebarOpen(false);
-                  }}
-                  onClose={() => setIsSidebarOpen(false)}
-                />
-              </View>
-           </View>
-        </View>
-      )}
+      {/* Chat History Sidebar (RIGHT) - Animated reuse */}
+      <AnimatedSidebarModal visible={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} side="right">
+        <ChatHistorySidebar 
+          conversations={Object.values(conversations || {})}
+          currentConversationId={currentConversationId}
+          onSelectConversation={(id) => {
+            switchConversation(id);
+            setIsSidebarOpen(false);
+          }}
+          onCreateNew={() => {
+            createNewChat("supply_chain_manager_workflow", "New Chat");
+            setIsSidebarOpen(false);
+          }}
+          onClose={() => setIsSidebarOpen(false)}
+        />
+      </AnimatedSidebarModal>
     </View>
   );
 };

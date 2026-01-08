@@ -56,6 +56,7 @@ const AppSidebar = ({ onClose }) => {
   const bottomItems = [
     { icon: 'lightbulb-outline', label: 'Solutions', route: '/solutions' },
     { icon: 'settings', label: 'Settings', route: '/settings' },
+    { icon: 'logout', label: 'Logout', route: 'logout' },
   ];
 
   return (
@@ -104,7 +105,7 @@ const AppSidebar = ({ onClose }) => {
         </View>
 
         {/* Spacer */}
-        <View style={{ height: 135 }} />
+        <View style={{ height: 40 }} />
 
         {/* Bottom Actions */}
         <View style={styles.bottomSection}>
@@ -114,7 +115,7 @@ const AppSidebar = ({ onClose }) => {
               style={styles.navItem}
               activeOpacity={0.7}
               onPress={() => {
-                if (item.label === 'Settings') {
+                if (item.label === 'Logout') {
                   handleLogout();
                 } else {
                   // router.push(item.route);
@@ -136,11 +137,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.surfacePrimary,
+    borderTopRightRadius: 12,
+    borderBottomRightRadius: 12,
+    borderTopLeftRadius: 12,
+    borderBottomLeftRadius: 12,
+    overflow: 'hidden',
   },
   scrollContent: {
     flex: 1,
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 16,
+    paddingBottom: 24,
   },
   profileCard: {
     backgroundColor: COLORS.surfaceSecondary,
@@ -198,7 +205,7 @@ const styles = StyleSheet.create({
   },
   bottomSection: {
     gap: 16,
-    paddingBottom: 20,
+    paddingBottom: 30,
   },
 });
 

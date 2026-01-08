@@ -12,9 +12,61 @@ import { MaterialIcons } from '@expo/vector-icons';
 const ChatHistorySidebar = ({ conversations = [], currentConversationId, onSelectConversation, onCreateNew, onClose }) => {
   const [searchQuery, setSearchQuery] = useState('');
 
-  const filteredConversations = conversations.filter(conv =>
-    conv.title?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Helper to categorize conversations by date
+  const categorizeConversations = (params) => {
+    const groups = {
+      'Today': [],
+      'Yesterday': [],
+      'Previous 7 Days': [],
+      'Previous 30 Days': [],
+      'Older': []
+    };
+
+    // Helper to parse dates robustly (matches app_ref logic)
+    const convertToDate = (dateString) => {
+        if (!dateString) return new Date(0);
+        // Helper to handle " at " format often found in app_ref or backend
+        const date = new Date(String(dateString).replace(/ at /, " ")); 
+        return isNaN(date.getTime()) ? new Date(0) : date;
+    };
+
+    const sorted = [...params].sort((a, b) => convertToDate(b.updatedAt).getTime() - convertToDate(a.updatedAt).getTime());
+    
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterdayStart = new Date(todayStart);
+    yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+    const sevenDaysStart = new Date(todayStart);
+    sevenDaysStart.setDate(sevenDaysStart.getDate() - 7);
+    const thirtyDaysStart = new Date(todayStart);
+    thirtyDaysStart.setDate(thirtyDaysStart.getDate() - 30);
+
+    sorted.forEach(conv => {
+      // Filter by search query if active
+      if (searchQuery && !conv.title?.toLowerCase().includes(searchQuery.toLowerCase())) {
+        return;
+      }
+
+      const date = convertToDate(conv.updatedAt);
+      if (date >= todayStart) {
+        groups['Today'].push(conv);
+      } else if (date >= yesterdayStart) {
+        groups['Yesterday'].push(conv);
+      } else if (date >= sevenDaysStart) {
+        groups['Previous 7 Days'].push(conv);
+      } else if (date >= thirtyDaysStart) {
+        groups['Previous 30 Days'].push(conv);
+      } else {
+        groups['Older'].push(conv);
+      }
+    });
+
+    return groups;
+  };
+
+  const groups = categorizeConversations(conversations);
+  const sections = ['Today', 'Yesterday', 'Previous 7 Days', 'Previous 30 Days', 'Older'];
+  const hasConversations = Object.values(groups).some(g => g.length > 0);
 
   return (
     <View style={styles.container}>
@@ -27,7 +79,7 @@ const ChatHistorySidebar = ({ conversations = [], currentConversationId, onSelec
         {/* Search Bar + New Chat Button */}
         <View style={styles.searchRow}>
           <View style={styles.searchContainer}>
-            <MaterialIcons name="search" size={16} color="#999999" />
+            <MaterialIcons name="search" size={16} color="#999999" style={{ marginRight: 0 }} />
             <TextInput
               style={styles.searchInput}
               placeholder="Search"
@@ -40,46 +92,57 @@ const ChatHistorySidebar = ({ conversations = [], currentConversationId, onSelec
           <TouchableOpacity 
             style={styles.newChatButton}
             onPress={onCreateNew}
+            activeOpacity={0.7}
           >
-            <MaterialIcons name="add" size={16} color="#FFFFFF" />
+            <MaterialIcons name="add" size={20} color="#333333" />
           </TouchableOpacity>
         </View>
       </View>
 
       {/* Chat List */}
       <View style={styles.chatListSection}>
-        <Text style={styles.sectionTitle}>Your chats</Text>
-        
         <ScrollView 
           style={styles.chatList}
           showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 20 }}
         >
-          {filteredConversations.length === 0 ? (
+          {!hasConversations ? (
             <Text style={styles.emptyText}>No chats found</Text>
           ) : (
-            filteredConversations.map((conversation) => (
-              <TouchableOpacity
-                key={conversation.id}
-                style={[
-                  styles.chatItem,
-                  currentConversationId === conversation.id && styles.chatItemActive
-                ]}
-                onPress={() => {
-                  onSelectConversation(conversation.id);
-                  onClose?.();
-                }}
-              >
-                <Text 
-                  style={[
-                    styles.chatItemText,
-                    currentConversationId === conversation.id && styles.chatItemTextActive
-                  ]}
-                  numberOfLines={1}
-                >
-                  {conversation.title || 'New Chat'}
-                </Text>
-              </TouchableOpacity>
-            ))
+            sections.map(sectionName => {
+              const sectionChats = groups[sectionName];
+              if (sectionChats.length === 0) return null;
+
+              return (
+                <View key={sectionName} style={{ marginBottom: 16 }}>
+                  <Text style={styles.sectionTitle}>{sectionName}</Text>
+                  {sectionChats.map((conversation) => (
+                    <TouchableOpacity
+                      key={conversation.id}
+                      style={[
+                        styles.chatItem,
+                        currentConversationId === conversation.id && styles.chatItemActive
+                      ]}
+                      onPress={() => {
+                        onSelectConversation(conversation.id);
+                        onClose?.();
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Text 
+                        style={[
+                          styles.chatItemText,
+                          currentConversationId === conversation.id && styles.chatItemTextActive
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {conversation.title || 'Sample chat'}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              );
+            })
           )}
         </ScrollView>
       </View>
@@ -91,6 +154,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+    borderTopRightRadius: 12,
+    borderBottomRightRadius: 12,
     borderTopLeftRadius: 12,
     borderBottomLeftRadius: 12,
     overflow: 'hidden',
@@ -140,13 +205,12 @@ const styles = StyleSheet.create({
     padding: 0,
   },
   newChatButton: {
-    width: 24,
-    height: 24,
-    backgroundColor: '#008AE5',
-    borderRadius: 20,
+    width: 32,
+    height: 32,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 6,
   },
   chatListSection: {
     paddingHorizontal: 20,
@@ -166,12 +230,12 @@ const styles = StyleSheet.create({
   chatItem: {
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-    marginBottom: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    marginBottom: 4,
   },
   chatItemActive: {
-    backgroundColor: 'rgba(245, 245, 245, 0.8)',
+    backgroundColor: '#F0F0F0',
   },
   chatItemText: {
     fontFamily: 'Inter Display',

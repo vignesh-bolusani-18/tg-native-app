@@ -15,8 +15,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-const TGIcon = require('../../assets/images/tg_logo6.svg');
+import TGIcon from '../../assets/images/tg_logo6.svg';
 
 interface QuickAction {
   id: string;
@@ -70,7 +69,9 @@ const ChatScreen = () => {
               <MaterialCommunityIcons name="chevron-left" size={24} color="#333333" />
             </TouchableOpacity>
             
-            <Image source={TGIcon} style={styles.logo} />
+<View style={{ width: 40, height: 40, justifyContent: 'center', alignItems: 'center' }}>
+            <TGIcon width={40} height={40} />
+            </View>
             
             {/* User avatar */}
             <View style={styles.userAvatar}>

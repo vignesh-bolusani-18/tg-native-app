@@ -44,5 +44,5 @@ app-example
 # =====================
 # Secrets (NEVER COMMIT)
 # =====================
-*.json
+# *.json
 app_ref/src/utils/Data Connections/Google Sheet/Credentials/

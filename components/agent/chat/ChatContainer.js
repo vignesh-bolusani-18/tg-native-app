@@ -1,6 +1,6 @@
 // D:\TG_REACT_NATIVE_MOBILE_APP\components\agent\chat\ChatContainer.js
 import React, { useEffect, useRef } from "react";
-import { FlatList, Image, Text, View } from "react-native";
+import { FlatList, View } from "react-native";
 
 // Hooks
 import { useVibe } from "../../../hooks/useVibe";
@@ -11,11 +11,8 @@ import { uploadJsonToS3 } from "../../../utils/s3Utils";
 
 // Components
 import AIMessage from "./AIMessage";
-import TypingIndicator from "./TypingIndicator";
-import UserMessage from "./UserMessage";
-
-// Assets (Ensure path is correct)
-const TGIcon = require("../../../assets/images/icon.png"); 
+import AILoadingSpinner from "./AILoadingSpinner";
+import UserMessage from "./UserMessage"; 
 
 const ChatContainer = () => {
   // const theme = useTheme();
@@ -32,8 +29,13 @@ const ChatContainer = () => {
     currentConversation,
   } = useVibe();
   
-  // Debug logging - only log on significant state changes (commented out for production)
-  // console.log('[ChatContainer] Render:', { messageCount: currentMessages.length, isStreaming, isWaitingForAI });
+  // Debug logging - log state changes to help track issues
+  console.log('[ChatContainer] Render:', { 
+    messageCount: currentMessages.length, 
+    isStreaming, 
+    isWaitingForAI,
+    conversationId: currentConversationId 
+  });
 
   // Scroll to bottom on new messages or streaming
   useEffect(() => {
@@ -115,61 +117,16 @@ const ChatContainer = () => {
         // ListFooterComponent renders the "Thinking..." or Streaming text
         ListFooterComponent={() => (
           <View>
-            {/* 1. AI Loading Bubble when waiting for response */}
-            {isWaitingForAI && (
-              <View style={{ 
-                flexDirection: 'row', 
-                alignItems: 'flex-start', 
-                marginBottom: 16, 
-                marginTop: 8, 
-                paddingHorizontal: 8 
-              }}>
-                {/* TG Avatar */}
-                <View style={{ 
-                  width: 36, 
-                  height: 36, 
-                  borderRadius: 18, 
-                  backgroundColor: '#DBEAFE', 
-                  alignItems: 'center', 
-                  justifyContent: 'center', 
-                  marginRight: 10 
-                }}>
-                  <Image source={TGIcon} style={{ width: 18, height: 18 }} resizeMode="contain" />
-                </View>
-                {/* Loading Bubble */}
-                <View style={{ 
-                  flex: 1, 
-                  backgroundColor: '#F9FAFB', 
-                  padding: 14, 
-                  borderRadius: 12, 
-                  borderTopLeftRadius: 4,
-                  borderWidth: 1,
-                  borderColor: '#E5E7EB',
-                  shadowColor: '#000', 
-                  shadowOffset: { width: 0, height: 1 }, 
-                  shadowOpacity: 0.05, 
-                  shadowRadius: 2, 
-                  elevation: 1 
-                }}>
-                  <TypingIndicator isTyping={true} message={processingStepText || "Thinking..."} />
-                </View>
-              </View>
+            {/* 1. AI Loading Spinner when waiting for response */}
+            {(isWaitingForAI || isStreaming) && (
+              <AILoadingSpinner 
+                progress={currentProgress} 
+                isStreaming={isWaitingForAI || isStreaming}
+                processingStepText={processingStepText}
+              />
             )}
 
-            {/* 2. Streaming Progress Text */}
-            {isStreaming && currentProgress.length > 0 && (
-              <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 16, marginTop: 8, paddingHorizontal: 8 }}>
-                <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#DBEAFE', alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
-                   <Image source={TGIcon} style={{ width: 18, height: 18 }} resizeMode="contain" />
-                </View>
-                <View style={{ flex: 1, backgroundColor: '#F3F4F6', padding: 14, borderRadius: 12, borderTopLeftRadius: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 }}>
-                  {/* Show the last progress message */}
-                  <Text style={{ color: '#1F2937', fontSize: 14, lineHeight: 21, fontWeight: '500' }}>
-                    {currentProgress[currentProgress.length - 1]?.message || "Processing..."}
-                  </Text>
-                </View>
-              </View>
-            )}
+
           </View>
         )}
         onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}

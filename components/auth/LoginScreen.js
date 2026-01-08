@@ -19,6 +19,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import * as Yup from "yup";
 import { useGoogleAuth } from "../../hooks/useGoogleAuth";
+import LoadingScreen from "../LoadingScreen";
 
 // Actions
 import {
@@ -27,12 +28,14 @@ import {
   verifyOtpAndLogin,
 } from "../../redux/actions/authActions";
 
-// TrueGradient Logo
-const TGIcon = require("../../assets/images/tg_logo6.svg");
+// Logo images - SVG imports
+import TGLogo from "../../assets/images/tg_logo1.svg";
+import GoogleLogo from "../../assets/images/google-icon-logo-svgrepo-com.svg";
 
 const LoginScreen = () => {
   const [otpSent, setOtpSent] = useState(false);
   const [userEmail, setUserEmail] = useState("");
+  const [showLoadingScreen, setShowLoadingScreen] = useState(false);
   const dispatch = useDispatch();
   const router = useRouter();
   const { initiateGoogleAuth } = useGoogleAuth();
@@ -45,7 +48,7 @@ const LoginScreen = () => {
 
   // Validation Schemas
   const emailValidationSchema = Yup.object().shape({
-    email: Yup.string().email("Invalid email").required("Email is required"),
+    email: Yup.string().email("Please enter a valid Email Id").required("Please enter a valid email id"),
   });
 
   const otpSchema = Yup.object().shape({
@@ -63,12 +66,20 @@ const LoginScreen = () => {
   const handleEmailSubmit = async (values) => {
     console.log("Sending OTP to:", values.email);
     try {
+      setShowLoadingScreen(true);
       await dispatch(initiateOtpLogin(values.email.toLowerCase()));
       setUserEmail(values.email);
-      setOtpSent(true);
+      
+      // Show loading screen for smooth transition
+      setTimeout(() => {
+        setShowLoadingScreen(false);
+        setOtpSent(true);
+      }, 1500);
+      
       dispatch(setError(null));
     } catch (error) {
       console.error("Error sending OTP:", error);
+      setShowLoadingScreen(false);
     }
   };
 
@@ -76,16 +87,19 @@ const LoginScreen = () => {
     const otpString = values.otp.join("");
     console.log("Verifying OTP:", otpString);
     try {
+      setShowLoadingScreen(true);
       const result = await dispatch(verifyOtpAndLogin(otpString));
       console.log("✅ handleOtpSubmit: OTP verification result:", result);
       
-      // Don't navigate immediately - wait for auth flow to complete
+      // Show loading screen before navigation
       setTimeout(() => {
+        setShowLoadingScreen(false);
         console.log("🚀 Redirecting after auth completion...");
         router.replace("/");
-      }, 100);
+      }, 1500);
     } catch (error) {
       console.error("OTP Verification failed:", error);
+      setShowLoadingScreen(false);
     }
   };
 
@@ -130,6 +144,14 @@ const LoginScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      
+      {/* Loading Screen Overlay */}
+      {showLoadingScreen && (
+        <View style={styles.loadingOverlay}>
+          <LoadingScreen message={otpSent ? "Verifying..." : "Sending code..."} />
+        </View>
+      )}
+      
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
@@ -142,10 +164,9 @@ const LoginScreen = () => {
           {!otpSent && (
             <View style={styles.content}>
               {/* Logo */}
-              <Image
-                source={TGIcon}
-                style={styles.logo}
-              />
+              <View style={styles.logoContainer}>
+                <TGLogo width={188} height={40} />
+              </View>
 
               {/* Header */}
               <View style={styles.header}>
@@ -189,7 +210,12 @@ const LoginScreen = () => {
                       />
                     </View>
 
-                    {/* Error Message */}
+                    {/* Email Validation Error */}
+                    {touched.email && errors.email && (
+                      <Text style={styles.validationError}>{errors.email}</Text>
+                    )}
+
+                    {/* Auth Error Message */}
                     {authError && (
                       <Text style={styles.errorText}>{authError}</Text>
                     )}
@@ -204,9 +230,8 @@ const LoginScreen = () => {
                         styles.continueButton,
                         (!values.email || loading) && styles.continueButtonDisabled
                       ]}
-                      buttonColor="#0F8BFF"
+                      buttonColor="#008AE5"
                       labelStyle={styles.continueButtonText}
-                      contentStyle={styles.continueButtonContent}
                     >
                       Continue
                     </Button>
@@ -217,7 +242,7 @@ const LoginScreen = () => {
                       style={styles.googleButton}
                       disabled={loading}
                     >
-                      <MaterialCommunityIcons name="google" size={20} color="#404040" />
+                      <GoogleLogo width={20} height={20} />
                       <Text style={styles.googleButtonText}>
                         Sign in with Google
                       </Text>
@@ -242,10 +267,9 @@ const LoginScreen = () => {
                 >
                   <MaterialCommunityIcons name="chevron-left" size={24} color="#333333" />
                 </TouchableOpacity>
-                <Image
-                  source={TGIcon}
-                  style={styles.logoSmall}
-                />
+                <View style={styles.logoSmall}>
+                  <TGLogo width={188} height={40} />
+                </View>
               </View>
 
               {/* OTP Title */}
@@ -346,18 +370,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 40,
   },
-  logo: {
-    width: 159,
-    height: 39,
-    resizeMode: 'contain',
+  logoContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   logoSmall: {
-    width: 159,
-    height: 39,
-    resizeMode: 'contain',
     position: 'absolute',
     left: '50%',
-    marginLeft: -79.5, // Half of width to center
+    marginLeft: -94,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   header: {
     alignItems: 'center',
@@ -366,10 +388,10 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontFamily: 'Inter Display',
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '600',
-    lineHeight: 22,
-    letterSpacing: -0.18,
+    lineHeight: 28,
+    letterSpacing: -0.2,
     color: '#333333',
     textAlign: 'center',
   },
@@ -386,7 +408,6 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     width: '100%',
-    maxWidth: 311,
     gap: 28,
   },
   inputWrapper: {
@@ -405,22 +426,38 @@ const styles = StyleSheet.create({
     color: '#EF4444',
     marginTop: -16,
   },
+  validationError: {
+    fontSize: 11,
+    fontFamily: 'Inter Display',
+    fontWeight: '500',
+    color: '#EF4444',
+    marginTop: 4,
+    marginBottom: -16,
+    width: '100%',
+    textAlign: 'left',
+    paddingHorizontal: 4,
+  },
   continueButton: {
     borderRadius: 8,
-    height: 36,
+    height: 42,
+    shadowColor: '#0A0D12',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   continueButtonDisabled: {
     opacity: 0.5,
   },
   continueButtonContent: {
-    height: 36,
-    justifyContent: 'center',
+    height: 42,
   },
   continueButtonText: {
     fontFamily: 'Inter Display',
     fontSize: 14,
     fontWeight: '600',
     lineHeight: 20,
+    letterSpacing: 0,
     color: '#FFFFFF',
   },
   googleButton: {
@@ -431,7 +468,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#EDEDED',
     borderRadius: 8,
-    paddingVertical: 8,
+    height: 42,
+    paddingVertical: 10,
     paddingHorizontal: 16,
     gap: 12,
   },
@@ -440,6 +478,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     lineHeight: 20,
+    letterSpacing: 0,
     color: '#404040',
   },
   // OTP Screen Styles
@@ -482,15 +521,20 @@ const styles = StyleSheet.create({
     height: 40,
     backgroundColor: 'transparent',
     textAlign: 'center',
+    paddingHorizontal: 0,
+    paddingVertical: 0,
   },
   otpInputUnderline: {
     borderBottomWidth: 1.25,
     borderBottomColor: 'rgba(224, 224, 224, 0.8)',
   },
   otpInputContent: {
-    fontSize: 18,
+    fontFamily: 'Inter Display',
+    fontSize: 20,
     fontWeight: '600',
     textAlign: 'center',
+    paddingBottom: 8,
+    alignSelf: 'center',
   },
   otpErrorContainer: {
     marginTop: -48,
@@ -513,6 +557,14 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     lineHeight: 16,
     color: '#666666',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1000,
   },
   resendLink: {
     fontFamily: 'Inter Display',

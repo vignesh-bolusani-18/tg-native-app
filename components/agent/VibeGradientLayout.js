@@ -238,40 +238,9 @@ const VibeGradientLayout = ({ children }) => {
     >
       <View style={{ flex: 1, flexDirection: 'row', overflow: 'hidden' }}>
         
-        {/* Sidebar (Drawer) */}
-        {/* In React Native, Sidebars are usually Drawers or Modals. 
-            Here we simulate the web-like sidebar for tablet/desktop 
-            and use a conditional render for mobile. */}
-        {(isSidebarOpen || !isMobile) && (
-           <View 
-             style={
-               isMobile 
-                 ? { position: 'absolute', zIndex: 50, height: '100%', width: '80%', backgroundColor: 'white', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 3.84, elevation: 5 }
-                 : { width: 288, borderRightWidth: 1, borderRightColor: '#e5e7eb', backgroundColor: 'white' }
-             }
-           >
-             <ConversationSidebar
-               conversationList={conversation_list}
-               onSelectConversation={handleSelectConversation}
-               onNewChat={handleNewChat}
-               isOpen={isSidebarOpen}
-               onToggle={() => {
-                 LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                 setIsSidebarOpen(!isSidebarOpen);
-               }}
-               currentConversationId={currentConversationId}
-               onRenameConversation={handleRenameConversation}
-               onDeleteConversation={handleDeleteConversation}
-             />
-           </View>
-        )}
-
         {/* Main Content Area */}
         <View style={{ flex: 1, flexDirection: 'column', backgroundColor: '#ffffff' }}>
           
-          {/* Mobile Sidebar Toggle (Visible only when sidebar is closed on mobile) */}
-          {/* REMOVED: The toggle is now inside ChatPage header */}
-
           {/* Workflow Progress Tracker */}
           {workflowProgress && currentConversation && (
             <View 
@@ -280,7 +249,7 @@ const VibeGradientLayout = ({ children }) => {
                 backgroundColor: 'white', 
                 borderBottomWidth: 1, 
                 borderBottomColor: '#f3f4f6',
-                paddingLeft: (isMobile && !isSidebarOpen) ? 60 : 0 
+                paddingLeft: isMobile ? 0 : 0 
               }}
             >
               <WorkflowProgressTracker
@@ -299,13 +268,47 @@ const VibeGradientLayout = ({ children }) => {
           </View>
         </View>
 
-        {/* Mobile Overlay (to close sidebar) */}
+        {/* Conversation Sidebar Overlay (RIGHT) - Only on mobile when open */}
         {isMobile && isSidebarOpen && (
-          <TouchableOpacity
-            activeOpacity={1}
-            onPress={() => setIsSidebarOpen(false)}
-            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.3)', zIndex: 40 }}
-          />
+          <View style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.4)',
+            zIndex: 1000,
+          }}>
+            <View style={{ flex: 1, flexDirection: 'row' }}>
+              <TouchableOpacity 
+                style={{ flex: 1 }}
+                activeOpacity={1}
+                onPress={() => setIsSidebarOpen(false)}
+              />
+              <View style={{
+                width: 280,
+                marginRight: 12,
+                marginTop: 12,
+                marginBottom: 12,
+                backgroundColor: 'white',
+                borderRadius: 12,
+                shadowColor: '#000',
+                shadowOffset: { width: -4, height: 0 },
+                shadowOpacity: 0.15,
+                shadowRadius: 12,
+                elevation: 8,
+              }}>
+                <ConversationSidebar
+                  conversationList={conversation_list}
+                  onSelectConversation={handleSelectConversation}
+                  onNewChat={handleNewChat}
+                  currentConversationId={currentConversationId}
+                  onRenameConversation={handleRenameConversation}
+                  onDeleteConversation={handleDeleteConversation}
+                />
+              </View>
+            </View>
+          </View>
         )}
 
       </View>

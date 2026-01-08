@@ -75,7 +75,7 @@ export const useVibe = () => {
     currentConversationId = null,
     // Legacy fields for backward compatibility
     messages = [],
-    isWaitingForAI = false,
+    // isWaitingForAI = false, // ⛔ REMOVED - Now read from currentConversation (line 119)
     processingStepText = "Thinking...",
     openDataTagger = false,
     dataTagged = false,
@@ -116,6 +116,7 @@ export const useVibe = () => {
     currentConversation?.analysisDataPathDict || null;
 
   const isStreaming = currentConversation?.isStreaming || false;
+  const isWaitingForAI = currentConversation?.isWaitingForAI || false;
   const currentProgress = currentConversation?.currentProgress || [];
   const error = currentConversation?.error || null;
   const lastMessage = currentConversation?.lastMessage || null;
