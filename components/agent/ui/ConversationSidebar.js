@@ -11,30 +11,24 @@ export default function ConversationSidebar({
 }) {
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Parse date string like "Jan 8, 2026, at 5:51:33 AM"
-  const parseDateString = (dateString) => {
-    if (!dateString) return null;
-    
-    // Replace ", at " with ", " to make it parseable
-    // "Jan 8, 2026, at 5:51:33 AM" -> "Jan 8, 2026, 5:51:33 AM"
-    const cleanString = String(dateString).replace(/,\s*at\s*/g, ", ");
-    
-    console.log('[parseDate] Input:', dateString, '-> Clean:', cleanString);
-    
-    const parsedDate = new Date(cleanString);
-    const isValid = !isNaN(parsedDate.getTime());
-    
-    console.log('[parseDate] Valid:', isValid, 'Time:', parsedDate.getTime());
-    
-    return isValid ? parsedDate : null;
-  };
-
-  // Simple date formatter - extracts dd.mm.yy from date string
+  // Simple date formatter - extracts dd.mm.yy from any date string
   const formatTime = (dateStr) => {
     if (!dateStr) return '';
     
-    const date = parseDateString(dateStr);
-    if (!date) {
+    // Clean the date string - remove ", at " and " at " to help JavaScript parse it
+    let cleanedDate = String(dateStr)
+      .replace(/, at /g, ' ')  // "Jan 7, 2026, at 3:45:14 PM" -> "Jan 7, 2026 3:45:14 PM"
+      .replace(/ at /g, ' ');   // "Jan 7, 2026 at 3:45:14 PM" -> "Jan 7, 2026 3:45:14 PM"
+    
+    console.log('[formatTime] Input:', dateStr, '-> Cleaned:', cleanedDate);
+    
+    // Try parsing as a date string
+    const date = new Date(cleanedDate);
+    const timeMs = date.getTime();
+    
+    console.log('[formatTime] Parsed time:', timeMs, 'isNaN:', isNaN(timeMs));
+    
+    if (isNaN(timeMs)) {
       console.log('[formatTime] Failed to parse:', dateStr);
       return '';
     }
@@ -57,13 +51,18 @@ export default function ConversationSidebar({
       return dateInput;
     }
     
-    // Parse the date string
-    const date = parseDateString(dateInput);
-    const timeMs = date ? date.getTime() : 0;
+    // Clean the date string first
+    const cleanedDate = String(dateInput)
+      .replace(/, at /g, ' ')
+      .replace(/ at /g, ' ');
+    
+    // Try parsing as date string
+    const date = new Date(cleanedDate);
+    const timeMs = date.getTime();
     
     console.log('[getTimestamp] Input:', dateInput, '-> Time:', timeMs);
     
-    return timeMs;
+    return timeMs || 0;
   };
 
   // Filter and sort conversations - most recent first based on updatedAt
